@@ -26,11 +26,11 @@ pub struct Token {
   lexeme: String,
   line: usize,
   column: usize,
-  literal: Literal,
+  literal: Option<Literal>,
 }
 
 impl Token {
-  pub fn new(token_type: TokenType, lexeme: String, line: usize, column: usize, literal: Literal) -> Self {
+  pub fn new(token_type: TokenType, lexeme: String, line: usize, column: usize, literal: Option<Literal>) -> Self {
     Token {
       token_type,
       lexeme,
@@ -41,6 +41,6 @@ impl Token {
   }
 
   pub fn to_string(&self) -> String {
-    format!("{:?} {} {}", self.token_type, self.lexeme, self.literal)
+    format!("{:?} {} {}", self.token_type, self.lexeme, self.literal.as_ref().map_or("None".to_string(), |l| l.to_string()))
   }
 }
