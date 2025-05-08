@@ -20,6 +20,7 @@ impl fmt::Display for Literal {
   }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
   token_type: TokenType,
   lexeme: String,
