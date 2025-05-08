@@ -22,7 +22,7 @@ impl fmt::Display for Literal {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-  token_type: TokenType,
+  pub token_type: TokenType,
   lexeme: String,
   line: usize,
   column: usize,
