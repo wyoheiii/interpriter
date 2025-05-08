@@ -61,6 +61,7 @@ impl Scanner {
       b'{' => self.add_token(token::TokenType::LeftBrace),
       b'}' => self.add_token(token::TokenType::RightBrace),
       b',' => self.add_token(token::TokenType::Comma),
+      b'.' => self.add_token(token::TokenType::Dot),
       b'-' => self.add_token(token::TokenType::Minus),
       b'+' => self.add_token(token::TokenType::Plus),
       b';' => self.add_token(token::TokenType::Semicolon),
@@ -328,4 +329,51 @@ impl Scanner {
     self.current >= self.source.len()
   }
 
+}
+
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::token::TokenType;
+
+  #[test]
+  fn test_scan_tokens() {
+    let source = r#"
+      var x = 10;
+      var y = "hello";
+      if (x <= y) {
+        print x;
+      }
+      /* This is a comment */
+    "#;
+
+
+    let mut scanner = Scanner::new(source);
+    let tokens = scanner.scan_tokens().unwrap();
+
+    assert_eq!(tokens.len(), 22);
+    assert_eq!(tokens[0].token_type, TokenType::Var);
+    assert_eq!(tokens[1].token_type, TokenType::Identifier);
+    assert_eq!(tokens[2].token_type, TokenType::Equal);
+    assert_eq!(tokens[3].token_type, TokenType::Number);
+    assert_eq!(tokens[4].token_type, TokenType::Semicolon);
+    assert_eq!(tokens[5].token_type, TokenType::Var);
+    assert_eq!(tokens[6].token_type, TokenType::Identifier);
+    assert_eq!(tokens[7].token_type, TokenType::Equal);
+    assert_eq!(tokens[8].token_type, TokenType::String);
+    assert_eq!(tokens[9].token_type, TokenType::Semicolon);
+    assert_eq!(tokens[10].token_type, TokenType::If);
+    assert_eq!(tokens[11].token_type, TokenType::LeftParen);
+    assert_eq!(tokens[12].token_type, TokenType::Identifier);
+    assert_eq!(tokens[13].token_type, TokenType::LessEqual);
+    assert_eq!(tokens[14].token_type, TokenType::Identifier);
+    assert_eq!(tokens[15].token_type, TokenType::RightParen);
+    assert_eq!(tokens[16].token_type, TokenType::LeftBrace);
+    assert_eq!(tokens[17].token_type, TokenType::Print);
+    assert_eq!(tokens[18].token_type, TokenType::Identifier);
+    assert_eq!(tokens[19].token_type, TokenType::Semicolon);
+    assert_eq!(tokens[20].token_type, TokenType::RightBrace);
+    assert_eq!(tokens[21].token_type, TokenType::Eof);
+  }
 }
