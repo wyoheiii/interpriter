@@ -1,5 +1,3 @@
-use std::str::Chars;
-
 use crate::token;
 
 pub struct Scanner {
