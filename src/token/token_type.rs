@@ -40,6 +40,11 @@ pub enum TokenType {
   Or,
   Print,
   Return,
+  Super,
+  This,
+  True,
+  Var,
+  While,
 
   Eof
 }
