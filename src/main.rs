@@ -1,16 +1,29 @@
 mod token;
 mod scanner;
+mod expr;
+mod parser;
 use std::io::{self, Write};
 
 // todo replを実装する
 fn main() {
-  let args: Vec<String> = std::env::args().collect();
-  if args.len() == 1 {
-    let path = &args[1];
-    run_file(path);
-  } else {
-    run_prompt();
-  }
+  let ex = expr::Expr::Binary(
+    expr::Binary {
+      left: Box::new(expr::Expr::Literal(expr::Literal::Number(1.0))),
+      operator: expr::BinaryOperator::Plus,
+      right: Box::new(expr::Expr::Literal(expr::Literal::Number(2.0))),
+    },
+  );
+
+  let p = expr::PrettyPrinter;
+  println!("{}", ex.accept(&p));
+  
+  // let args: Vec<String> = std::env::args().collect();
+  // if args.len() == 1 {
+  //   let path = &args[1];
+  //   run_file(path);
+  // } else {
+  //   run_prompt();
+  // }
 }
 
 
