@@ -34,8 +34,8 @@ pub struct Binary {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unary {
-  operator: UnaryOperator,
-  right: Box<Expr>,
+  pub operator: UnaryOperator,
+  pub right: Box<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
