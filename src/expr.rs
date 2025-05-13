@@ -1,17 +1,3 @@
-use crate::token::{Token};
-
-/*
-expression -> literal | unary | binary | grouping ;
-literal    -> NUMBER | STRING | "true" | "false" | "nil" ;
-grouping   -> "(" expression ")" ;
-unary      -> ("-" | "!") expression ;
-binary     -> expression operator expression ;
-operator   -> "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" ;
-*/
-
-
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
   Literal(Literal),
