@@ -1,20 +1,27 @@
 use crate::token;
+use std::fmt;
 
 pub struct Scanner {
   source: Vec<u8>,
   tokens: Vec<token::Token>,
-  err: Vec<Error>,
+  err: Vec<ScannerError>,
   start: usize,
   current: usize,
   column: usize,
   line: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct Error {
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScannerError {
   message: String,
   line: usize,
   column: usize,
+}
+
+impl fmt::Display for ScannerError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "scan error at {}:{}: {}", self.line, self.column, self.message)
+  }
 }
 
 impl Scanner {
@@ -30,7 +37,7 @@ impl Scanner {
     }
   }
 
-  pub fn scan_tokens(&mut self) -> Result<Vec<token::Token>, Vec<Error>> {
+  pub fn scan_tokens(&mut self) -> Result<Vec<token::Token>, Vec<ScannerError>> {
 
     while !self.is_at_end() {
       self.start = self.current;
@@ -134,7 +141,7 @@ impl Scanner {
             }
           }
           if depth > 0 {
-            self.err.push(Error {
+            self.err.push(ScannerError {
               message: String::from("Unterminated block comment."),
               line: self.line,
               column: self.column,
@@ -162,7 +169,7 @@ impl Scanner {
         } else if self.is_alpha(c) {
           self.identifier();
         } else {
-          self.err.push(Error {
+          self.err.push(ScannerError {
             message: String::from("Unexpected character."),
             line: self.line,
             column: self.column,
@@ -209,7 +216,7 @@ impl Scanner {
 
     // The closing ".
     if self.is_at_end() {
-      self.err.push(Error {
+      self.err.push(ScannerError {
         message: String::from("Unterminated string."),
         line: self.line,
         column: self.column,
@@ -245,7 +252,7 @@ impl Scanner {
         self.add_token_with_literal(token::TokenType::Number, Some(token::Literal::Number(n)));
       }
       Err(_) => {
-        self.err.push(Error {
+        self.err.push(ScannerError {
           message: String::from("Invalid number."),
           line: self.line,
           column: self.column,
