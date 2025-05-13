@@ -23,10 +23,10 @@ impl fmt::Display for Literal {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
   pub token_type: TokenType,
-  lexeme: String,
-  line: usize,
-  column: usize,
-  literal: Option<Literal>,
+  pub lexeme: String,
+  pub line: usize,
+  pub column: usize,
+  pub literal: Option<Literal>,
 }
 
 impl Token {
