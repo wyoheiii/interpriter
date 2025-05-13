@@ -2,28 +2,21 @@ mod token;
 mod scanner;
 mod expr;
 mod parser;
-use std::io::{self, Write};
+use std::{io::{self, Write}};
+
+use expr::{PrettyPrinter, Visitor};
 
 // todo replを実装する
 fn main() {
-  let ex = expr::Expr::Binary(
-    expr::Binary {
-      left: Box::new(expr::Expr::Literal(expr::Literal::Number(1.0))),
-      operator: expr::BinaryOperator::Plus,
-      right: Box::new(expr::Expr::Literal(expr::Literal::Number(2.0))),
-    },
-  );
 
-  let p = expr::PrettyPrinter;
-  println!("{}", ex.accept(&p));
-  
-  // let args: Vec<String> = std::env::args().collect();
-  // if args.len() == 1 {
-  //   let path = &args[1];
-  //   run_file(path);
-  // } else {
-  //   run_prompt();
-  // }
+  let args: Vec<String> = std::env::args().collect();
+  println!("args: {:?}, len: {}", args, args.len());
+  if args.len() == 2 {
+    let path = &args[1];
+    run_file(path);
+  } else {
+    println!("Usage: {} <script>", args[0]);
+  }
 }
 
 
@@ -49,22 +42,20 @@ fn run_prompt() {
 }
 
 fn run(source: &str) {
-  let mut scanner = scanner::Scanner::new(source);
-  // todo err handling
-  let tokens = scanner.scan_tokens().unwrap();
+  let tokens = scanner::Scanner::new(source).scan_tokens();
 
-  for token in tokens {
-    println!("{:?}", token);
+  if let Some(err) = tokens.as_ref().err() {
+    err.iter().for_each(|e| {eprintln!("{}", e);});
+    return;
   }
 
-  // match reader.read() {
-  //   Ok(_) => println!("Read successfully"),
-  //   Err(e) => println!("Error reading: {}", e),
-  // }
-}
+  let ast = parser::Parser::new(tokens.unwrap()).parse();
 
-// todo: エラートレイトを実装する
-fn err(line: usize,column: usize , where_: String, msg: &str) {
-  eprintln!("[line \"{} \": column \"{}\"] {} : {}", line, column, where_ , msg);
-  // todo 視覚的にわかりやすいように場所も表示する
+  if let Some(err) = ast.as_ref().err() {
+    eprintln!("{}", err);
+    return;
+  }
+  //println!("ast: {:?}", ast);
+  let printer = PrettyPrinter;
+  println!("{}",printer.visit_expr(&ast.unwrap()));
 }
