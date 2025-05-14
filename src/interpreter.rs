@@ -39,6 +39,24 @@ pub enum Value {
   Nil,
 }
 
+impl fmt::Display for Value {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", match self {
+          Value::Number(n) => {
+            let s = n.to_string();
+            if s.ends_with(".0") {
+              s[..s.len()-2].to_string()
+            } else {
+              s
+            }
+          },
+          Value::String(s) => s.clone(),
+          Value::Boolean(b) => b.to_string(),
+          Value::Nil => "nil".to_string(),
+      })
+  }
+}
+
 #[derive(Debug)]
 pub struct interpreter {}
 
@@ -53,7 +71,7 @@ impl interpreter {
     if let Err(err) = res {
     eprintln!("{}", err);
     } else {
-      println!("{:?}", res);
+      println!("{:?}", res.unwrap().to_string());
     }
   }
 
