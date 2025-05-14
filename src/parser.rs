@@ -1,5 +1,5 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping, SourcePos};
+use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping};
 use std::fmt;
 
 
