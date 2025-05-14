@@ -2,9 +2,8 @@ mod token;
 mod scanner;
 mod expr;
 mod parser;
+mod interpreter;
 use std::{io::{self, Write}};
-
-use expr::{PrettyPrinter, Visitor};
 
 // todo replを実装する
 fn main() {
@@ -43,7 +42,7 @@ fn run_prompt() {
 
 fn run(source: &str) {
   let tokens = scanner::Scanner::new(source).scan_tokens();
-
+  println!("tokens: {:?}", tokens);
   if let Some(err) = tokens.as_ref().err() {
     err.iter().for_each(|e| {eprintln!("{}", e);});
     return;
@@ -55,7 +54,8 @@ fn run(source: &str) {
     eprintln!("{}", err);
     return;
   }
-  //println!("ast: {:?}", ast);
-  let printer = PrettyPrinter;
-  println!("{}",printer.visit_expr(&ast.unwrap()));
+  println!("ast: {:?}", ast);
+  let interpreter = interpreter::interpreter::new();
+  interpreter.interpret(&ast.unwrap());
+
 }
