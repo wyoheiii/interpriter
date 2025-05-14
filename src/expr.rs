@@ -1,10 +1,4 @@
-
-#[derive(Debug, Clone, PartialEq, Copy)]
-pub struct SourcePos {
-  pub line: usize,
-  pub column: usize,
-}
-
+use crate::token;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -17,7 +11,6 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grouping {
   pub expression: Box<Expr>,
-  pub pos: SourcePos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,14 +18,15 @@ pub struct Binary {
   pub left: Box<Expr>,
   pub operator: BinaryOperator,
   pub right: Box<Expr>,
-  pub pos: SourcePos,
+  pub left_token: token::Token,
+  pub right_token: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unary {
   pub operator: UnaryOperator,
   pub right: Box<Expr>,
-  pub pos: SourcePos,
+  pub token: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

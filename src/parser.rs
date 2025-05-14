@@ -99,10 +99,8 @@ impl Parser {
           left: Box::new(expr),
           operator: self.convert_to_binary_op(&operator.token_type),
           right: Box::new(right),
-          pos: SourcePos {
-            line: operator.line,
-            column: operator.column,
-          },
+          left_token: self.before_previous().clone(),
+          right_token: self.peek().clone(),
         }
       );
     }
@@ -122,10 +120,7 @@ impl Parser {
             _ => panic!("Invalid operator"),
           },
           right: Box::new(right),
-          pos: SourcePos {
-            line: operator.line,
-            column: operator.column,
-          },
+          token: self.peek().clone(),
         }
       ));
     }
@@ -164,10 +159,6 @@ impl Parser {
       return Ok(Expr::Grouping(
         Grouping {
           expression: Box::new(expr),
-          pos: SourcePos {
-            line: self.previous().line,
-            column: self.previous().column,
-          },
         }
         ));
     }
@@ -231,6 +222,10 @@ impl Parser {
 
   fn previous(&mut self) -> &Token {
     &self.tokens[self.current - 1]
+  }
+
+  fn before_previous(&mut self) -> &Token {
+    &self.tokens[self.current - 2]
   }
 
   fn is_at_end(&self) -> bool {
