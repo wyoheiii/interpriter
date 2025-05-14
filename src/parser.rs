@@ -1,5 +1,5 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping};
+use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping, SourcePos};
 use std::fmt;
 
 
@@ -99,6 +99,10 @@ impl Parser {
           left: Box::new(expr),
           operator: self.convert_to_binary_op(&operator.token_type),
           right: Box::new(right),
+          pos: SourcePos {
+            line: operator.line,
+            column: operator.column,
+          },
         }
       );
     }
@@ -118,6 +122,10 @@ impl Parser {
             _ => panic!("Invalid operator"),
           },
           right: Box::new(right),
+          pos: SourcePos {
+            line: operator.line,
+            column: operator.column,
+          },
         }
       ));
     }
@@ -156,6 +164,10 @@ impl Parser {
       return Ok(Expr::Grouping(
         Grouping {
           expression: Box::new(expr),
+          pos: SourcePos {
+            line: self.previous().line,
+            column: self.previous().column,
+          },
         }
         ));
     }
