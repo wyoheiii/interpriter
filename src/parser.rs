@@ -99,8 +99,8 @@ impl Parser {
           left: Box::new(expr),
           operator: self.convert_to_binary_op(&operator.token_type),
           right: Box::new(right),
-          left_token: self.before_previous().clone(),
-          right_token: self.peek().clone(),
+          left_token: self.before_before_previous().clone(),
+          right_token: self.previous().clone()
         }
       );
     }
@@ -120,7 +120,7 @@ impl Parser {
             _ => panic!("Invalid operator"),
           },
           right: Box::new(right),
-          token: self.peek().clone(),
+          token: self.previous().clone(),
         }
       ));
     }
@@ -162,7 +162,7 @@ impl Parser {
         }
         ));
     }
-
+    // to
     Err(ParseError::new("Expect expression.", self.peek().clone()))
   }
 
@@ -226,6 +226,10 @@ impl Parser {
 
   fn before_previous(&mut self) -> &Token {
     &self.tokens[self.current - 2]
+  }
+
+  fn before_before_previous(&mut self) -> &Token {
+    &self.tokens[self.current - 3]
   }
 
   fn is_at_end(&self) -> bool {
