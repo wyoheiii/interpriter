@@ -53,7 +53,8 @@ pub struct Parser {
 program     -> declaration* EOF ;
 declaration -> var_decl | statement ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
-statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt ;
+statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt | for_stmt ;
+for_stmt    -> "for" "(" (var_decl | expr_stmt | ";") expression? ";" expression? ")" statement ;
 while_stmt  -> "while" "(" expression ")" statement ;
 if_stmt     -> "if" "(" expression ")" statement ("else" statement)? ;
 block       -> "{" declaration* "}" ;
@@ -135,8 +136,66 @@ impl Parser {
       return self.if_stmt();
     } else if self.match_token(&[TokenType::While]) {
       return self.while_stmt();
+    } else if self.match_token(&[TokenType::For]) {
+      return self.for_stmt();
     }
     self.expr_stmt()
+  }
+
+  fn for_stmt(&mut self) -> StmtResult {
+    self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
+
+    let initializer = if self.match_token(&[TokenType::Var]) {
+      Some(Box::new(self.var_decl()?))
+    } else if self.match_token(&[TokenType::Semicolon]) {
+      None
+    } else {
+      Some(Box::new(self.expr_stmt()?))
+    };
+
+    let condition = if self.check(TokenType::Semicolon) {
+      None
+    } else {
+      Some(Box::new(self.expression()?))
+    };
+
+    self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
+    let increment = if self.check(TokenType::RightParen) {
+      None
+    } else {
+      Some(Box::new(self.expression()?))
+    };
+
+    self.consume(TokenType::RightParen, "Expect ')' after for clauses.")?;
+
+
+    let mut body = self.stmt()?;
+    if let Some(increment) = increment {
+      body = Stmt::Block(
+        Block {
+          stmts: vec![body, Stmt::Expr(*increment)],
+        }
+      );
+    };
+
+    if let Some(condition) = condition {
+      body = Stmt::While(
+        While {
+          condition: *condition,
+          body: Box::new(body),
+        }
+      );
+    };
+
+    if let Some(initializer) = initializer {
+      body = Stmt::Block(
+        Block {
+          stmts: vec![*initializer, body],
+        }
+      );
+    }
+
+    Ok(body)
   }
 
   fn while_stmt(&mut self) -> StmtResult {
