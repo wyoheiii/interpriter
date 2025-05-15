@@ -58,12 +58,11 @@ impl fmt::Display for Value {
 }
 
 #[derive(Debug)]
-pub struct interpreter {}
+pub struct Interpreter {}
 
-type InterpretResult = Result<Value, RunTimeError>;
-impl interpreter {
+impl Interpreter {
   pub fn new() -> Self {
-    interpreter {}
+    Interpreter {}
   }
 
   pub fn interpret(&self, expr: &Expr) {

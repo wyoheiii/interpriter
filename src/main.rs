@@ -55,7 +55,6 @@ fn run(source: &str) {
     return;
   }
   println!("ast: {:?}", ast);
-  let interpreter = interpreter::interpreter::new();
-  interpreter.interpret(&ast.unwrap());
+  interpreter::Interpreter::new().interpret(ast.unwrap());
 
 }
