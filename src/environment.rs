@@ -35,4 +35,17 @@ impl Environment {
       })
     }
   }
+
+  pub fn assign(&mut self, token: &Token, value: Value) -> Result<(), RunTimeError> {
+    if self.values.contains_key(token.lexeme.as_str()) {
+      let binding = self.values.get_mut(token.lexeme.as_str()).unwrap();
+      binding.value = value;
+      Ok(())
+    } else {
+      Err(RunTimeError::UndefinedVariable {
+        token: token.clone(),
+        message: format!("Undefined variable '{}'", token.lexeme),
+      })
+    }
+  }
 }

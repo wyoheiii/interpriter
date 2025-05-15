@@ -106,7 +106,7 @@ impl Interpreter {
 
   fn interpret_assign(&mut self, assign: &Assign) -> ExprResult {
     let value = self.interpret_expr(&assign.value)?;
-    self.env.define(value, assign.name.clone());
+    self.env.assign(&assign.name, value.clone())?;
     Ok(Value::Nil)
   }
 
