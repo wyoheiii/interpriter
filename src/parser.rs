@@ -71,12 +71,16 @@ impl Parser {
     Parser { tokens, current: 0, errs: Vec::new() }
   }
 
-  pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+  pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<ParseError>> {
     let mut stmts = Vec::new();
     while !self.is_at_end() {
       if let Some(stmt) = self.declaration().ok() {
         stmts.push(stmt);
       }
+    }
+
+    if !self.errs.is_empty() {
+      return Err(self.errs.clone());
     }
     Ok(stmts)
   }

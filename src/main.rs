@@ -53,7 +53,7 @@ fn run(source: &str) {
   let ast = parser::Parser::new(tokens.unwrap()).parse();
 
   if let Some(err) = ast.as_ref().err() {
-    eprintln!("{}", err);
+    err.iter().for_each(|e| {eprintln!("{}", e);});
     return;
   }
   println!("ast: {:?}", ast);

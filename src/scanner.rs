@@ -190,7 +190,7 @@ impl Scanner {
       ty,
       text,
       self.line,
-      self.start,
+      self.column,
       literal,
     ));
   }
