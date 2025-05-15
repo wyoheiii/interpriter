@@ -158,7 +158,7 @@ impl Parser {
       self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
       return Ok(Expr::Grouping(
         Grouping {
-          expression: Box::new(expr),
+          expr: Box::new(expr),
         }
         ));
     }

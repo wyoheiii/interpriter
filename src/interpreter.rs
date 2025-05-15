@@ -78,7 +78,7 @@ impl interpreter {
   pub fn interpret_expr(&self, expr: &Expr) -> InterpretResult {
     match expr {
       Expr::Literal(literal) => self.interpret_literal(literal),
-      Expr::Grouping(grouping) => self.interpret_expr(&grouping.expression),
+      Expr::Grouping(grouping) => self.interpret_expr(&grouping.expr),
       Expr::Unary(unary) => self.interpret_unary(unary),
       Expr::Binary(binary) => self.interpret_binary(binary),
     }
