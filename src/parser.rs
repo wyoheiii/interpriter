@@ -14,7 +14,8 @@ use crate::expr::{
   Assign,
   Block,
   If,
-  Logical
+  Logical,
+  While,
 };
 use std::fmt;
 
@@ -52,7 +53,8 @@ pub struct Parser {
 program     -> declaration* EOF ;
 declaration -> var_decl | statement ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
-statement   -> expr_stmt | print_stmt | block | if_stmt ;
+statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt ;
+while_stmt  -> "while" "(" expression ")" statement ;
 if_stmt     -> "if" "(" expression ")" statement ("else" statement)? ;
 block       -> "{" declaration* "}" ;
 expr_stmt   -> expression ";" ;
@@ -131,8 +133,24 @@ impl Parser {
       return self.block();
     } else if self.match_token(&[TokenType::If]) {
       return self.if_stmt();
+    } else if self.match_token(&[TokenType::While]) {
+      return self.while_stmt();
     }
     self.expr_stmt()
+  }
+
+  fn while_stmt(&mut self) -> StmtResult {
+    self.consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
+    let condition = self.expression()?;
+    self.consume(TokenType::RightParen, "Expect ')' after condition.")?;
+
+    Ok(Stmt::While(
+      While {
+        condition,
+        body: Box::new(self.stmt()?),
+      }
+    ))
+
   }
 
   fn if_stmt(&mut self) -> StmtResult {

@@ -14,6 +14,7 @@ use crate::expr::{
   Block,
   If,
   Logical,
+  While,
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -87,7 +88,18 @@ impl Interpreter {
       Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
       Stmt::Block(block) => self.block_stmt(block),
       Stmt::If(if_stmt) => self.if_stmt(if_stmt),
+      Stmt::While(while_stmt) => self.while_stmt(while_stmt),
     }
+  }
+
+  fn while_stmt(&mut self, while_stmt: &While) -> StmtResult {
+    while {
+      let condition = &self.interpret_expr(&while_stmt.condition)?;
+      self.is_truthy(condition)
+    }{
+      self.interpret_stmt(&while_stmt.body)?;
+    }
+    Ok(())
   }
 
   fn if_stmt(&mut self, if_stmt: &If) -> StmtResult {

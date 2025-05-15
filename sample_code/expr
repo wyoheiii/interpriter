@@ -20,5 +20,13 @@ print b;
 print c;
 
 
-print nil and ;
+print nil and nil;
 print nil or "b";
+
+
+var a = 1;
+
+while (a < 3) {
+  print a;
+  a = a + 1;
+}

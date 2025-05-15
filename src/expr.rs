@@ -17,7 +17,16 @@ pub enum Stmt {
   Print(Expr),
   VarDecl(VarDecl),
   Block(Block),
-  If(If)
+  If(If),
+  While(While),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct While {
+  pub condition: Expr,
+  pub body: Box<Stmt>,
+  // pub condition_token: token::Token,
+  // pub body_token: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
