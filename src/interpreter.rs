@@ -50,7 +50,7 @@ type StmtResult = Result<(), RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
     Interpreter {
-      env: Environment::new(),
+      env: Environment::new(None),
     }
   }
 

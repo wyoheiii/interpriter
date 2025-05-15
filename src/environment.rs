@@ -11,12 +11,14 @@ pub struct Binding {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
+  pub enclosing: Option<Box<Environment>>,
   pub values: HashMap<String, Binding>,
 }
 
 impl Environment {
-  pub fn new() -> Self {
+  pub fn new(enclosing: Option<Box<Environment>>) -> Self {
     Environment {
+      enclosing,
       values: HashMap::new(),
     }
   }
@@ -27,25 +29,34 @@ impl Environment {
 
   pub fn get(&self, token: &Token) -> Result<&Binding, RunTimeError> {
     if self.values.contains_key(token.lexeme.as_str()) {
-      Ok(self.values.get(token.lexeme.as_str()).unwrap())
-    } else {
-      Err(RunTimeError::UndefinedVariable {
-        token: token.clone(),
-        message: format!("Undefined variable '{}'", token.lexeme),
-      })
+      return Ok(self.values.get(token.lexeme.as_str()).unwrap())
     }
+
+    if let Some(enclosing) = &self.enclosing {
+      return enclosing.get(token);
+    }
+
+    Err(RunTimeError::UndefinedVariable {
+      token: token.clone(),
+      message: format!("Undefined variable '{}'", token.lexeme),
+    })
   }
 
   pub fn assign(&mut self, token: &Token, value: Value) -> Result<(), RunTimeError> {
     if self.values.contains_key(token.lexeme.as_str()) {
       let binding = self.values.get_mut(token.lexeme.as_str()).unwrap();
       binding.value = value;
-      Ok(())
-    } else {
-      Err(RunTimeError::UndefinedVariable {
-        token: token.clone(),
-        message: format!("Undefined variable '{}'", token.lexeme),
-      })
+      return Ok(())
     }
+
+    if let Some(enclosing) = &mut self.enclosing {
+      return enclosing.assign(token, value);
+    }
+
+    Err(RunTimeError::UndefinedVariable {
+      token: token.clone(),
+      message: format!("Undefined variable '{}'", token.lexeme),
+    })
+
   }
 }
