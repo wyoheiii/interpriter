@@ -1,5 +1,5 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Grouping, Literal, Stmt, Unary, UnaryOperator, VarDecl, Variable};
+use crate::expr::{Binary, BinaryOperator, Expr, Grouping, Literal, Stmt, Unary, UnaryOperator, VarDecl, Variable, Assign};
 use std::fmt;
 
 
@@ -39,7 +39,8 @@ var_decl    -> "var" IDENTIFIER "=" expression ";" ;
 statement   -> expr_stmt | print_stmt ;
 expr_stmt   -> expression ";" ;
 print_stmt  -> "print" expression ";" ;
-expression  -> equality ;
+expression  -> assignment ;
+assignment  -> IDENTIFIER "=" assignment | equality ;
 equality    -> comparison (("==" | "!=") comparison)* ;
 comparison  -> term (("<" | "<=" | ">" | ">=") term)* ;
 term        -> factor (("-" | "+") factor)* ;
@@ -119,7 +120,26 @@ impl Parser {
   }
 
   fn expression(&mut self) -> ExprResult {
-    Ok(self.equality()?)
+    Ok(self.assignment()?)
+  }
+
+  fn assignment(&mut self) -> ExprResult {
+    let expr = self.equality()?;
+    if self.match_token(&[TokenType::Equal]) {
+      let equals = self.previous().clone();
+      let value = self.assignment()?;
+      if let Expr::Variable(var) = expr {
+        return Ok(Expr::Assign(
+          Assign {
+            name: var.name,
+            value: Box::new(value),
+          }
+        ));
+      }
+      Err(ParseError::new("Invalid assignment target.", equals))
+    } else {
+      Ok(expr)
+    }
   }
 
   fn equality(&mut self) -> ExprResult {

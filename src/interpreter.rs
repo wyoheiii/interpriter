@@ -1,4 +1,4 @@
-use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt, Variable};
+use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt, Variable, VarDecl, Assign};
 use crate::token::Token;
 use crate::value::Value;
 use crate::environment::Environment;
@@ -66,36 +66,48 @@ impl Interpreter {
 
   fn interpret_stmt(&mut self, stmt: &Stmt) -> StmtResult {
     match stmt {
-      Stmt::Expr(expr) => {
-        self.interpret_expr(expr)?;
-        Ok(())
-      }
-      Stmt::Print(expr) => {
-        let res = self.interpret_expr(expr)?;
-        println!("{}", res.to_string());
-        Ok(())
-      }
-      Stmt::VarDecl(var_decl) => {
-        let val = if let Some(initializer) = &var_decl.initializer {
-          self.interpret_expr(initializer)?
-        } else {
-          Value::Nil
-        };
-
-        self.env.define(val, var_decl.name.clone());
-        Ok(())
-      }
+      Stmt::Expr(expr) => self.expr_stmt(expr),
+      Stmt::Print(expr) => self.print_stmt(expr),
+      Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
     }
   }
 
-  fn interpret_expr(&self, expr: &Expr) -> ExprResult {
+  fn expr_stmt(&mut self, expr: &Expr) -> StmtResult {
+    self.interpret_expr(expr)?;
+    Ok(())
+  }
+
+  fn print_stmt(&mut self, expr: &Expr) -> StmtResult {
+    let value = self.interpret_expr(expr)?;
+    println!("{}", value);
+    Ok(())
+  }
+
+  fn var_decl_stmt(&mut self, var_decl: &VarDecl) -> StmtResult {
+    let value = if let Some(expr) = &var_decl.initializer {
+      self.interpret_expr(expr)?
+    } else {
+      Value::Nil
+    };
+    self.env.define(value, var_decl.name.clone());
+    Ok(())
+  }
+
+  fn interpret_expr(&mut self, expr: &Expr) -> ExprResult {
     match expr {
       Expr::Literal(literal) => self.interpret_literal(literal),
       Expr::Grouping(grouping) => self.interpret_expr(&grouping.expr),
       Expr::Unary(unary) => self.interpret_unary(unary),
       Expr::Binary(binary) => self.interpret_binary(binary),
       Expr::Variable(variable) => self.interpret_variable(variable),
+      Expr::Assign(assign ) => self.interpret_assign(assign),
     }
+  }
+
+  fn interpret_assign(&mut self, assign: &Assign) -> ExprResult {
+    let value = self.interpret_expr(&assign.value)?;
+    self.env.define(value, assign.name.clone());
+    Ok(Value::Nil)
   }
 
   fn interpret_variable(&self, variable: &Variable) -> ExprResult {
@@ -113,7 +125,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_unary(&self, unary: &Unary) -> ExprResult {
+  fn interpret_unary(&mut self, unary: &Unary) -> ExprResult {
     let right = self.interpret_expr(&unary.right)?;
     match unary.operator {
       UnaryOperator::Minus => match right {
@@ -127,7 +139,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_binary(&self, binary: &Binary) -> ExprResult {
+  fn interpret_binary(&mut self, binary: &Binary) -> ExprResult {
     let left = self.interpret_expr(&binary.left)?;
     let right = self.interpret_expr(&binary.right)?;
 
