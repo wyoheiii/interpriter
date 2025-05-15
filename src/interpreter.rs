@@ -1,6 +1,7 @@
-use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt};
+use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt, Variable};
 use crate::token::Token;
 use crate::value::Value;
+use crate::environment::Environment;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -15,6 +16,10 @@ pub enum RunTimeError {
     operator: String,
     message: String,
   },
+  UndefinedVariable {
+    token: Token,
+    message: String,
+  },
 }
 
 impl fmt::Display for RunTimeError {
@@ -26,22 +31,30 @@ impl fmt::Display for RunTimeError {
       RunTimeError::BinaryError { left, right, operator ,message } => {
         write!(f, "Run-time error at {}:{}: {} {} {}: {}", left.line, left.column, left.lexeme, operator, right.lexeme, message)
       }
+      RunTimeError::UndefinedVariable { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}", token.line, token.column, message)
+      }
+
     }
 
   }
 }
 
 #[derive(Debug)]
-pub struct Interpreter {}
+pub struct Interpreter {
+  env : Environment,
+}
 
 type ExprResult = Result<Value, RunTimeError>;
 type StmtResult = Result<(), RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
-    Interpreter {}
+    Interpreter {
+      env: Environment::new(),
+    }
   }
 
-  pub fn interpret(&self, stmts: Vec<Stmt>) {
+  pub fn interpret(&mut self, stmts: Vec<Stmt>) {
     for stmt in stmts {
       let res = self.interpret_stmt(&stmt);
       if let Err(err) = res {
@@ -51,7 +64,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_stmt(&self, stmt: &Stmt) -> StmtResult {
+  fn interpret_stmt(&mut self, stmt: &Stmt) -> StmtResult {
     match stmt {
       Stmt::Expr(expr) => {
         self.interpret_expr(expr)?;
@@ -60,6 +73,16 @@ impl Interpreter {
       Stmt::Print(expr) => {
         let res = self.interpret_expr(expr)?;
         println!("{}", res.to_string());
+        Ok(())
+      }
+      Stmt::VarDecl(var_decl) => {
+        let val = if let Some(initializer) = &var_decl.initializer {
+          self.interpret_expr(initializer)?
+        } else {
+          Value::Nil
+        };
+
+        self.env.define(val, var_decl.name.clone());
         Ok(())
       }
     }
@@ -71,7 +94,13 @@ impl Interpreter {
       Expr::Grouping(grouping) => self.interpret_expr(&grouping.expr),
       Expr::Unary(unary) => self.interpret_unary(unary),
       Expr::Binary(binary) => self.interpret_binary(binary),
+      Expr::Variable(variable) => self.interpret_variable(variable),
     }
+  }
+
+  fn interpret_variable(&self, variable: &Variable) -> ExprResult {
+    let binding = self.env.get(&variable.name)?;
+    Ok(binding.value.clone())
   }
 
   fn interpret_literal(&self, literal: &Literal) -> ExprResult {
