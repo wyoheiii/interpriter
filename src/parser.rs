@@ -1,5 +1,5 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping, Stmt};
+use crate::expr::{Binary, BinaryOperator, Expr, Grouping, Literal, Stmt, Unary, UnaryOperator, VarDecl, Variable};
 use std::fmt;
 
 
@@ -33,17 +33,19 @@ pub struct Parser {
 }
 
 /*
-program    -> statement* EOF ;
-statement  -> expr_stmt | print_stmt ;
-expr_stmt  -> expression ";" ;
-print_stmt -> "print" expression ";" ;
-expression -> equality ;
-equality   -> comparison (("==" | "!=") comparison)* ;
-comparison -> term (("<" | "<=" | ">" | ">=") term)* ;
-term       -> factor (("-" | "+") factor)* ;
-factor     -> unary (("*" | "/") unary)* ;
-unary      -> ("-" | "!") unary | primary ;
-primary    -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+program     -> declaration* EOF ;
+declaration -> var_decl | statement ;
+var_decl    -> "var" IDENTIFIER "=" expression ";" ;
+statement   -> expr_stmt | print_stmt ;
+expr_stmt   -> expression ";" ;
+print_stmt  -> "print" expression ";" ;
+expression  -> equality ;
+equality    -> comparison (("==" | "!=") comparison)* ;
+comparison  -> term (("<" | "<=" | ">" | ">=") term)* ;
+term        -> factor (("-" | "+") factor)* ;
+factor      -> unary (("*" | "/") unary)* ;
+unary       -> ("-" | "!") unary | primary ;
+primary     -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
 */
 
 type ExprResult = Result<Expr, ParseError>;
@@ -57,15 +59,44 @@ impl Parser {
   pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
     let mut stmts = Vec::new();
     while !self.is_at_end() {
-      match self.statement() {
-        Ok(stmt) => stmts.push(stmt),
-        Err(err) => {
-          self.errs.push(err);
-          self.synchronize();
-        }
+      if let Some(stmt) = self.declaration().ok() {
+        stmts.push(stmt);
       }
     }
     Ok(stmts)
+  }
+
+  fn declaration(&mut self) -> StmtResult {
+    let res = if self.match_token(&[TokenType::Var]) {
+      self.var_decl()
+    } else {
+      self.statement()
+    };
+
+    if res.is_err() {
+      self.errs.push(res.clone().err().unwrap());
+      self.synchronize();
+    }
+
+    res
+
+  }
+
+  fn var_decl(&mut self) -> StmtResult {
+    let name = self.consume(TokenType::Identifier, "Expect variable name.")?.clone();
+    let initializer = if self.match_token(&[TokenType::Equal]) {
+      Some(Box::new(self.expression()?))
+    } else {
+      None
+    };
+
+    self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.")?;
+    Ok(Stmt::VarDecl(
+      VarDecl {
+        name: name,
+        initializer,
+      }
+    ))
   }
 
   fn statement(&mut self) ->StmtResult {
@@ -195,6 +226,14 @@ impl Parser {
       return Ok(Expr::Grouping(
         Grouping {
           expr: Box::new(expr),
+        }
+        ));
+    }
+
+    if self.match_token(&[TokenType::Identifier]) {
+      return Ok(Expr::Variable(
+        Variable {
+          name: self.previous().clone(),
         }
         ));
     }

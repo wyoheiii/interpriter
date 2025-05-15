@@ -6,12 +6,25 @@ pub enum Expr {
   Grouping(Grouping),
   Unary(Unary),
   Binary(Binary),
+  Variable(Variable)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
   Expr(Expr),
   Print(Expr),
+  VarDecl(VarDecl),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VarDecl {
+  pub name: token::Token,
+  pub initializer: Option<Box<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Variable {
+  pub name: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
