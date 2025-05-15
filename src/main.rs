@@ -44,7 +44,7 @@ fn run_prompt() {
 
 fn run(source: &str) {
   let tokens = scanner::Scanner::new(source).scan_tokens();
-  println!("tokens: {:?}", tokens);
+
   if let Some(err) = tokens.as_ref().err() {
     err.iter().for_each(|e| {eprintln!("{}", e);});
     return;
@@ -56,7 +56,6 @@ fn run(source: &str) {
     err.iter().for_each(|e| {eprintln!("{}", e);});
     return;
   }
-  println!("ast: {:?}", ast);
   interpreter::Interpreter::new().interpret(ast.unwrap());
 
 }
