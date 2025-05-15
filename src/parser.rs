@@ -1,5 +1,18 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Grouping, Literal, Stmt, Unary, UnaryOperator, VarDecl, Variable, Assign};
+use crate::expr::{
+  Binary,
+  BinaryOperator,
+  Expr,
+  Grouping,
+  Literal,
+  Stmt,
+  Unary,
+  UnaryOperator,
+  VarDecl,
+  Variable,
+  Assign,
+  Block
+};
 use std::fmt;
 
 
@@ -36,7 +49,8 @@ pub struct Parser {
 program     -> declaration* EOF ;
 declaration -> var_decl | statement ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
-statement   -> expr_stmt | print_stmt ;
+statement   -> expr_stmt | print_stmt | block ;
+block       -> "{" declaration* "}" ;
 expr_stmt   -> expression ";" ;
 print_stmt  -> "print" expression ";" ;
 expression  -> assignment ;
@@ -103,8 +117,25 @@ impl Parser {
   fn statement(&mut self) ->StmtResult {
     if self.match_token(&[TokenType::Print]) {
       return self.print_statement();
+    } else if self.match_token(&[TokenType::LeftBrace]) {
+      return self.block();
     }
     self.expr_statement()
+  }
+
+  fn block(&mut self) -> StmtResult {
+    let mut stmts = Vec::new();
+    while !self.is_at_end() && self.peek().token_type != TokenType::RightBrace {
+      if let Some(stmt) = self.declaration().ok() {
+        stmts.push(stmt);
+      }
+    }
+    self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+    Ok(Stmt::Block(
+      Block {
+        stmts,
+      }
+    ))
   }
 
   fn print_statement(&mut self) ->StmtResult {

@@ -15,6 +15,12 @@ pub enum Stmt {
   Expr(Expr),
   Print(Expr),
   VarDecl(VarDecl),
+  Block(Block),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+  pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

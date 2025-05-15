@@ -1,8 +1,23 @@
-use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt, Variable, VarDecl, Assign};
+use crate::expr::{
+  Literal,
+  Grouping,
+  Binary,
+  Unary,
+  Expr,
+  UnaryOperator,
+  BinaryOperator,
+  Stmt,
+  Variable,
+  VarDecl,
+  Assign,
+  Block
+};
 use crate::token::Token;
 use crate::value::Value;
 use crate::environment::Environment;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RunTimeError {
@@ -34,15 +49,13 @@ impl fmt::Display for RunTimeError {
       RunTimeError::UndefinedVariable { token, message } => {
         write!(f, "Run-time error at {}:{}: {}", token.line, token.column, message)
       }
-
     }
-
   }
 }
 
 #[derive(Debug)]
 pub struct Interpreter {
-  env : Environment,
+  env : Rc<RefCell<Environment>>,
 }
 
 type ExprResult = Result<Value, RunTimeError>;
@@ -50,7 +63,7 @@ type StmtResult = Result<(), RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
     Interpreter {
-      env: Environment::new(None),
+      env: Rc::new(RefCell::new(Environment::new(None))),
     }
   }
 
@@ -69,7 +82,23 @@ impl Interpreter {
       Stmt::Expr(expr) => self.expr_stmt(expr),
       Stmt::Print(expr) => self.print_stmt(expr),
       Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
+      Stmt::Block(block) => self.block_stmt(block),
     }
+  }
+
+  fn block_stmt(&mut self, block: &Block) -> StmtResult {
+    let prev_env = self.env.clone();
+    self.env = Rc::new(RefCell::new(Environment::new(Some(prev_env.clone()))));
+    for stmt in &block.stmts {
+      let res = self.interpret_stmt(stmt);
+      if let Err(err) = res {
+        self.env = prev_env;
+        return Err(err);
+      }
+
+    }
+    self.env = prev_env;
+    Ok(())
   }
 
   fn expr_stmt(&mut self, expr: &Expr) -> StmtResult {
@@ -89,7 +118,7 @@ impl Interpreter {
     } else {
       Value::Nil
     };
-    self.env.define(value, var_decl.name.clone());
+    self.env.borrow_mut().define(value, var_decl.name.clone());
     Ok(())
   }
 
@@ -106,12 +135,12 @@ impl Interpreter {
 
   fn interpret_assign(&mut self, assign: &Assign) -> ExprResult {
     let value = self.interpret_expr(&assign.value)?;
-    self.env.assign(&assign.name, value.clone())?;
+    self.env.borrow_mut().assign(&assign.name, value.clone())?;
     Ok(Value::Nil)
   }
 
-  fn interpret_variable(&self, variable: &Variable) -> ExprResult {
-    let binding = self.env.get(&variable.name)?;
+  fn interpret_variable(&mut self, variable: &Variable) -> ExprResult {
+    let binding = self.env.borrow_mut().get(&variable.name)?;
     Ok(binding.value.clone())
   }
 

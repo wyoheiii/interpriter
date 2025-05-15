@@ -1,2 +1,20 @@
-print "hoge";
-print 1 + 1;
+var a = "global a";
+var b = "global b";
+var c = "global c";
+
+{
+  var a = "outer a";
+  var b = "outer b";
+  {
+    var a = "innner a";
+    print a;
+    print b;
+    print c;
+  }
+  print a;
+  print b;
+  print c;
+}
+print a;
+print b;
+print c;
