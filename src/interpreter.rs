@@ -10,7 +10,8 @@ use crate::expr::{
   Variable,
   VarDecl,
   Assign,
-  Block
+  Block,
+  If,
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -83,6 +84,18 @@ impl Interpreter {
       Stmt::Print(expr) => self.print_stmt(expr),
       Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
       Stmt::Block(block) => self.block_stmt(block),
+      Stmt::If(if_stmt) => self.if_stmt(if_stmt),
+    }
+  }
+
+  fn if_stmt(&mut self, if_stmt: &If) -> StmtResult {
+    let condition = self.interpret_expr(&if_stmt.condition)?;
+    if self.is_truthy(&condition) {
+      self.interpret_stmt(&if_stmt.then_branch)
+    } else if let Some(else_branch) = &if_stmt.else_branch {
+      self.interpret_stmt(else_branch)
+    } else {
+      Ok(())
     }
   }
 

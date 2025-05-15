@@ -11,7 +11,8 @@ use crate::expr::{
   VarDecl,
   Variable,
   Assign,
-  Block
+  Block,
+  If,
 };
 use std::fmt;
 
@@ -49,7 +50,8 @@ pub struct Parser {
 program     -> declaration* EOF ;
 declaration -> var_decl | statement ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
-statement   -> expr_stmt | print_stmt | block ;
+statement   -> expr_stmt | print_stmt | block | if_stmt ;
+if_stmt     -> "if" "(" expression ")" statement ("else" statement)? ;
 block       -> "{" declaration* "}" ;
 expr_stmt   -> expression ";" ;
 print_stmt  -> "print" expression ";" ;
@@ -123,8 +125,31 @@ impl Parser {
       return self.print_statement();
     } else if self.match_token(&[TokenType::LeftBrace]) {
       return self.block();
+    } else if self.match_token(&[TokenType::If]) {
+      return self.if_statement();
     }
     self.expr_statement()
+  }
+
+  fn if_statement(&mut self) -> StmtResult {
+    self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
+    let condition = self.expression()?;
+    self.consume(TokenType::RightParen, "Expect ')' after condition.")?;
+
+    let  then = self.statement()?;
+    let else_branch = if self.match_token(&[TokenType::Else]) {
+      Some(Box::new(self.statement()?))
+    } else {
+      None
+    };
+
+    Ok(Stmt::If(
+      If {
+        condition,
+        then_branch: Box::new(then),
+        else_branch,
+      }
+    ))
   }
 
   fn block(&mut self) -> StmtResult {

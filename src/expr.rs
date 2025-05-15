@@ -16,6 +16,14 @@ pub enum Stmt {
   Print(Expr),
   VarDecl(VarDecl),
   Block(Block),
+  If(If)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct If {
+  pub condition: Expr,
+  pub then_branch: Box<Stmt>,
+  pub else_branch: Option<Box<Stmt>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
