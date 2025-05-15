@@ -91,7 +91,7 @@ impl Parser {
     let res = if self.match_token(&[TokenType::Var]) {
       self.var_decl()
     } else {
-      self.statement()
+      self.stmt()
     };
 
     if res.is_err() {
@@ -120,25 +120,25 @@ impl Parser {
     ))
   }
 
-  fn statement(&mut self) ->StmtResult {
+  fn stmt(&mut self) ->StmtResult {
     if self.match_token(&[TokenType::Print]) {
-      return self.print_statement();
+      return self.print_stmt();
     } else if self.match_token(&[TokenType::LeftBrace]) {
       return self.block();
     } else if self.match_token(&[TokenType::If]) {
-      return self.if_statement();
+      return self.if_stmt();
     }
-    self.expr_statement()
+    self.expr_stmt()
   }
 
-  fn if_statement(&mut self) -> StmtResult {
+  fn if_stmt(&mut self) -> StmtResult {
     self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
     let condition = self.expression()?;
     self.consume(TokenType::RightParen, "Expect ')' after condition.")?;
 
-    let  then = self.statement()?;
+    let  then = self.stmt()?;
     let else_branch = if self.match_token(&[TokenType::Else]) {
-      Some(Box::new(self.statement()?))
+      Some(Box::new(self.stmt()?))
     } else {
       None
     };
@@ -167,13 +167,13 @@ impl Parser {
     ))
   }
 
-  fn print_statement(&mut self) ->StmtResult {
+  fn print_stmt(&mut self) ->StmtResult {
     let value = self.expression()?;
     self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
     Ok(Stmt::Print(value))
   }
 
-  fn expr_statement(&mut self) ->StmtResult {
+  fn expr_stmt(&mut self) ->StmtResult {
     let expr = self.expression()?;
     self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
     Ok(Stmt::Expr(expr))
