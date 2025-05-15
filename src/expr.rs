@@ -10,7 +10,7 @@ pub enum Expr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grouping {
-  pub expression: Box<Expr>,
+  pub expr: Box<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
