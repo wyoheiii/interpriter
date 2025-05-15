@@ -1,6 +1,6 @@
 use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator};
 use crate::token::Token;
-use std::{f32::consts::E, fmt};
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RunTimeError {
