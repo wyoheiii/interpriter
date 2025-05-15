@@ -41,6 +41,7 @@ factor     -> unary (("*" | "/") unary)* ;
 unary      -> ("-" | "!") unary | primary ;
 primary    -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
 */
+type ExprResult = Result<Expr, ParseError>;
 
 impl Parser {
   pub fn new(tokens: Vec<Token>) -> Self {
@@ -55,14 +56,14 @@ impl Parser {
     Ok(self.equality()?)
   }
 
-  fn equality(&mut self) -> Result<Expr, ParseError> {
+  fn equality(&mut self) -> ExprResult {
     self.parse_binary( |p| p.comparison(), &[
       TokenType::EqualEqual,
       TokenType::BangEqual,
     ])
   }
 
-  fn comparison(&mut self) -> Result<Expr, ParseError> {
+  fn comparison(&mut self) -> ExprResult {
     self.parse_binary( |p| p.term(), &[
       TokenType::Less,
       TokenType::LessEqual,
@@ -71,23 +72,23 @@ impl Parser {
     ])
   }
 
-  fn term(&mut self) -> Result<Expr, ParseError> {
+  fn term(&mut self) -> ExprResult {
     self.parse_binary( |p| p.factor(), &[
       TokenType::Plus,
       TokenType::Minus,
     ])
   }
 
-  fn factor(&mut self) -> Result<Expr, ParseError> {
+  fn factor(&mut self) -> ExprResult {
     self.parse_binary( |p| p.unary(), &[
       TokenType::Star,
       TokenType::Slash,
     ])
   }
 
-  fn parse_binary<F>(&mut self, mut sub_expr: F, types: &[TokenType]) -> Result<Expr, ParseError>
+  fn parse_binary<F>(&mut self, mut sub_expr: F, types: &[TokenType]) -> ExprResult
   where
-    F: FnMut(&mut Self) -> Result<Expr, ParseError>,
+    F: FnMut(&mut Self) -> ExprResult,
   {
     let mut expr = sub_expr(self)?;
 
@@ -108,7 +109,7 @@ impl Parser {
     Ok(expr)
   }
 
-  fn unary(&mut self)-> Result<Expr, ParseError> {
+  fn unary(&mut self)-> ExprResult {
     if self.match_token(&[TokenType::Bang, TokenType::Minus]) {
       let operator = self.previous().clone();
       let right = self.unary()?;
@@ -128,7 +129,7 @@ impl Parser {
     self.primary()
   }
 
-  fn primary(&mut self) -> Result<Expr, ParseError> {
+  fn primary(&mut self) -> ExprResult {
     if self.match_token(&[TokenType::False]) {
       return Ok(Expr::Literal(Literal::False));
     }

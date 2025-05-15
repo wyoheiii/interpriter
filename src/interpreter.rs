@@ -60,21 +60,13 @@ impl fmt::Display for Value {
 #[derive(Debug)]
 pub struct Interpreter {}
 
+type ExprResult = Result<Value, RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
     Interpreter {}
   }
 
-  pub fn interpret(&self, expr: &Expr) {
-    let res = self.interpret_expr(expr);
-    if let Err(err) = res {
-    eprintln!("{}", err);
-    } else {
-      println!("{:?}", res.unwrap().to_string());
-    }
-  }
-
-  pub fn interpret_expr(&self, expr: &Expr) -> InterpretResult {
+  fn interpret_expr(&self, expr: &Expr) -> ExprResult {
     match expr {
       Expr::Literal(literal) => self.interpret_literal(literal),
       Expr::Grouping(grouping) => self.interpret_expr(&grouping.expr),
@@ -83,7 +75,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_literal(&self, literal: &Literal) -> InterpretResult {
+  fn interpret_literal(&self, literal: &Literal) -> ExprResult {
     match literal {
       Literal::String(s) => Ok(Value::String(s.clone())),
       Literal::Number(n) => Ok(Value::Number(*n)),
@@ -93,7 +85,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_unary(&self, unary: &Unary) -> InterpretResult {
+  fn interpret_unary(&self, unary: &Unary) -> ExprResult {
     let right = self.interpret_expr(&unary.right)?;
     match unary.operator {
       UnaryOperator::Minus => match right {
@@ -107,7 +99,7 @@ impl Interpreter {
     }
   }
 
-  fn interpret_binary(&self, binary: &Binary) -> InterpretResult {
+  fn interpret_binary(&self, binary: &Binary) -> ExprResult {
     let left = self.interpret_expr(&binary.left)?;
     let right = self.interpret_expr(&binary.right)?;
 
