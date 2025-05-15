@@ -9,6 +9,12 @@ pub enum Expr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
+  Expr(Expr),
+  Print(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Grouping {
   pub expr: Box<Expr>,
 }

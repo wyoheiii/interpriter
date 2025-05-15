@@ -1,5 +1,5 @@
 use crate::token::{self, Token, TokenType};
-use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping};
+use crate::expr::{Binary, BinaryOperator, Expr, Unary, UnaryOperator, Literal, Grouping, Stmt};
 use std::fmt;
 
 
@@ -33,6 +33,10 @@ pub struct Parser {
 }
 
 /*
+program    -> statement* EOF ;
+statement  -> expr_stmt | print_stmt ;
+expr_stmt  -> expression ";" ;
+print_stmt -> "print" expression ";" ;
 expression -> equality ;
 equality   -> comparison (("==" | "!=") comparison)* ;
 comparison -> term (("<" | "<=" | ">" | ">=") term)* ;
@@ -41,18 +45,49 @@ factor     -> unary (("*" | "/") unary)* ;
 unary      -> ("-" | "!") unary | primary ;
 primary    -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
 */
+
 type ExprResult = Result<Expr, ParseError>;
+type StmtResult = Result<Stmt, ParseError>;
 
 impl Parser {
   pub fn new(tokens: Vec<Token>) -> Self {
     Parser { tokens, current: 0, errs: Vec::new() }
   }
 
-  pub fn parse(&mut self) -> Result<Expr, ParseError> {
-    Ok(self.expression()?)
+  pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    let mut stmts = Vec::new();
+    while !self.is_at_end() {
+      match self.statement() {
+        Ok(stmt) => stmts.push(stmt),
+        Err(err) => {
+          self.errs.push(err);
+          self.synchronize();
+        }
+      }
+    }
+    Ok(stmts)
   }
 
-  fn expression(&mut self) -> Result<Expr, ParseError> {
+  fn statement(&mut self) ->StmtResult {
+    if self.match_token(&[TokenType::Print]) {
+      return self.print_statement();
+    }
+    self.expr_statement()
+  }
+
+  fn print_statement(&mut self) ->StmtResult {
+    let value = self.expression()?;
+    self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+    Ok(Stmt::Print(value))
+  }
+
+  fn expr_statement(&mut self) ->StmtResult {
+    let expr = self.expression()?;
+    self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+    Ok(Stmt::Expr(expr))
+  }
+
+  fn expression(&mut self) -> ExprResult {
     Ok(self.equality()?)
   }
 

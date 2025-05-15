@@ -1,4 +1,4 @@
-use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator};
+use crate::expr::{Literal, Grouping, Binary, Unary, Expr, UnaryOperator, BinaryOperator, Stmt};
 use crate::token::Token;
 use std::fmt;
 
@@ -61,9 +61,34 @@ impl fmt::Display for Value {
 pub struct Interpreter {}
 
 type ExprResult = Result<Value, RunTimeError>;
+type StmtResult = Result<(), RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
     Interpreter {}
+  }
+
+  pub fn interpret(&self, stmts: Vec<Stmt>) {
+    for stmt in stmts {
+      let res = self.interpret_stmt(&stmt);
+      if let Err(err) = res {
+        eprintln!("{}", err);
+        return;
+      }
+    }
+  }
+
+  fn interpret_stmt(&self, stmt: &Stmt) -> StmtResult {
+    match stmt {
+      Stmt::Expr(expr) => {
+        self.interpret_expr(expr)?;
+        Ok(())
+      }
+      Stmt::Print(expr) => {
+        let res = self.interpret_expr(expr)?;
+        println!("{}", res.to_string());
+        Ok(())
+      }
+    }
   }
 
   fn interpret_expr(&self, expr: &Expr) -> ExprResult {
