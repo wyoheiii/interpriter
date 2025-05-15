@@ -8,6 +8,7 @@ pub enum Expr {
   Binary(Binary),
   Variable(Variable),
   Assign(Assign),
+  Logical(Logical),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,6 +36,15 @@ pub struct Block {
 pub struct VarDecl {
   pub name: token::Token,
   pub initializer: Option<Box<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Logical {
+  pub left: Box<Expr>,
+  pub operator: LogicalOperator,
+  pub right: Box<Expr>,
+  pub left_token: token::Token,
+  pub right_token: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,6 +77,12 @@ pub struct Unary {
   pub operator: UnaryOperator,
   pub right: Box<Expr>,
   pub token: token::Token,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogicalOperator {
+  And,
+  Or,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]

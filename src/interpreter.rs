@@ -6,12 +6,14 @@ use crate::expr::{
   Expr,
   UnaryOperator,
   BinaryOperator,
+  LogicalOperator,
   Stmt,
   Variable,
   VarDecl,
   Assign,
   Block,
   If,
+  Logical,
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -143,7 +145,25 @@ impl Interpreter {
       Expr::Binary(binary) => self.interpret_binary(binary),
       Expr::Variable(variable) => self.interpret_variable(variable),
       Expr::Assign(assign ) => self.interpret_assign(assign),
+      Expr::Logical(logical) => self.interpret_logical(logical),
     }
+  }
+
+  fn interpret_logical(&mut self, logical: &Logical) -> ExprResult {
+    let left = self.interpret_expr(&logical.left)?;
+    match logical.operator {
+      LogicalOperator::Or => {
+        if self.is_truthy(&left) {
+          return Ok(left);
+        }
+      }
+      LogicalOperator::And => {
+        if !self.is_truthy(&left) {
+          return Ok(left);
+        }
+      }
+    }
+    self.interpret_expr(&logical.right)
   }
 
   fn interpret_assign(&mut self, assign: &Assign) -> ExprResult {

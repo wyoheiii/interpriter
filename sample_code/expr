@@ -18,3 +18,7 @@ var c = "global c";
 print a;
 print b;
 print c;
+
+
+print nil and ;
+print nil or "b";

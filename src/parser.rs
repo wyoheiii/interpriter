@@ -2,6 +2,7 @@ use crate::token::{self, Token, TokenType};
 use crate::expr::{
   Binary,
   BinaryOperator,
+  LogicalOperator,
   Expr,
   Grouping,
   Literal,
@@ -13,6 +14,7 @@ use crate::expr::{
   Assign,
   Block,
   If,
+  Logical
 };
 use std::fmt;
 
@@ -56,7 +58,9 @@ block       -> "{" declaration* "}" ;
 expr_stmt   -> expression ";" ;
 print_stmt  -> "print" expression ";" ;
 expression  -> assignment ;
-assignment  -> IDENTIFIER "=" assignment | equality ;
+assignment  -> IDENTIFIER "=" assignment | logic_or ;
+logic_or    -> logic_and ("or" logic_and)* ;
+logic_and   -> equality ("and" equality)* ;
 equality    -> comparison (("==" | "!=") comparison)* ;
 comparison  -> term (("<" | "<=" | ">" | ">=") term)* ;
 term        -> factor (("-" | "+") factor)* ;
@@ -184,7 +188,7 @@ impl Parser {
   }
 
   fn assignment(&mut self) -> ExprResult {
-    let expr = self.equality()?;
+    let expr = self.or()?;
     if self.match_token(&[TokenType::Equal]) {
       let equals = self.previous().clone();
       let value = self.assignment()?;
@@ -200,6 +204,44 @@ impl Parser {
     } else {
       Ok(expr)
     }
+  }
+
+  fn or(&mut self) -> ExprResult {
+    let mut expr = self.and()?;
+
+    while self.match_token(&[TokenType::Or]) {
+      let right = self.and()?;
+      expr = Expr::Logical (
+        Logical {
+          left: Box::new(expr),
+          operator: LogicalOperator::Or,
+          right: Box::new(right),
+          left_token: self.before_before_previous().clone(),
+          right_token: self.previous().clone()
+        }
+      );
+    }
+
+    Ok(expr)
+  }
+
+  fn and(&mut self) ->ExprResult {
+    let mut expr = self.equality()?;
+
+    while self.match_token(&[TokenType::And]) {
+      let right = self.equality()?;
+      expr = Expr::Logical (
+        Logical {
+          left: Box::new(expr),
+          operator: LogicalOperator::And,
+          right: Box::new(right),
+          left_token: self.before_before_previous().clone(),
+          right_token: self.previous().clone()
+        }
+      );
+    }
+
+    Ok(expr)
   }
 
   fn equality(&mut self) -> ExprResult {
