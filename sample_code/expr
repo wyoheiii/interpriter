@@ -42,7 +42,6 @@
 // }
 
 var n = 4;
-var hoge = 1;
 fun fib(n) {
   if (n < 2) {
     return n;
@@ -55,3 +54,17 @@ for (var i = 0; i < 20; i = i + 1) {
 }
 
 print n;
+
+fun makec() {
+  var a = 0;
+  fun c() {
+    a = a + 1;
+    print a;
+  }
+
+  return c;
+}
+
+var c = makec();
+c();
+c();

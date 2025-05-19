@@ -57,11 +57,12 @@ trait Callable {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fun {
   decl: FunDecl,
+  closure: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Fun {
-  pub fn new(decl: FunDecl) -> Self {
-    Fun { decl }
+  pub fn new(decl: FunDecl,closure: Option<Rc<RefCell<Environment>>> ) -> Self {
+    Fun { decl, closure }
   }
 }
 
@@ -74,7 +75,7 @@ impl Callable for Fun {
       });
     }
     let prev_env = interpreter.env.clone();
-    let env = Rc::new(RefCell::new(Environment::new(Some(interpreter.env.clone()))));
+    let env = Rc::new(RefCell::new(Environment::new(self.closure.clone())));
     for (i, param) in self.decl.params.iter().enumerate() {
       env.borrow_mut().define(args[i].clone(), param.clone());
     }
@@ -131,7 +132,7 @@ impl Interpreter {
     if self.return_value.is_some() {
       return Ok(());
     }
-    
+
     match stmt {
       Stmt::Expr(expr) => self.expr_stmt(expr),
       Stmt::Print(expr) => self.print_stmt(expr),
@@ -154,7 +155,7 @@ impl Interpreter {
   }
 
   fn fun_decl_stmt(&mut self, fun_decl: &FunDecl) -> StmtResult {
-    let fun = Fun::new(fun_decl.clone());
+    let fun = Fun::new(fun_decl.clone(), Some(self.env.clone()));
     self.env.borrow_mut().define(Value::Fun(fun), fun_decl.name.clone());
     Ok(())
   }
