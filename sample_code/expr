@@ -1,42 +1,57 @@
-var a = "global a";
-var b = "global b";
-var c = "global c";
+// var a = "global a";
+// var b = "global b";
+// var c = "global c";
 
-{
-  var a = "outer a";
-  var b = "outer b";
-  {
-    var a = "innner a";
-    print a;
-    print b;
-    print c;
+// {
+//   var a = "outer a";
+//   var b = "outer b";
+//   {
+//     var a = "innner a";
+//     print a;
+//     print b;
+//     print c;
+//   }
+//   print a;
+//   print b;
+//   print c;
+// }
+// print a;
+// print b;
+// print c;
+
+
+// print nil and nil;
+// print nil or "b";
+
+
+// var a = 1;
+
+// while (a < 3) {
+//   print a;
+//   a = a + 1;
+// }
+
+
+// for (var i = 0; i < 3; i = i + 1) {
+//   print i;
+// }
+
+// var b = 1;
+// for (; b < 3; b = b + 1) {
+//   print b;
+// }
+
+var n = 4;
+print n;
+fun p(n) {
+  if (n > 0) {
+    p(n - 1);
   }
-  print a;
-  print b;
-  print c;
-}
-print a;
-print b;
-print c;
-
-
-print nil and nil;
-print nil or "b";
-
-
-var a = 1;
-
-while (a < 3) {
-  print a;
-  a = a + 1;
+  print n;
 }
 
+//print n;
 
-for (var i = 0; i < 3; i = i + 1) {
-  print i;
-}
+p(3);
 
-var b = 1;
-for (; b < 3; b = b + 1) {
-  print b;
-}
+print n;

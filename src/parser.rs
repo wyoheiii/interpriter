@@ -1,21 +1,6 @@
 use crate::token::{self, Token, TokenType};
 use crate::expr::{
-  Binary,
-  BinaryOperator,
-  LogicalOperator,
-  Expr,
-  Grouping,
-  Literal,
-  Stmt,
-  Unary,
-  UnaryOperator,
-  VarDecl,
-  Variable,
-  Assign,
-  Block,
-  If,
-  Logical,
-  While,
+  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While
 };
 use std::fmt;
 
@@ -51,7 +36,10 @@ pub struct Parser {
 
 /*
 program     -> declaration* EOF ;
-declaration -> var_decl | statement ;
+declaration -> funDecl | var_decl | statement ;
+funDecl     -> "fun" function ;
+function    -> IDENTIFIER "(" parameters? ")" block ;
+parameters  -> IDENTIFIER ("," IDENTIFIER)* ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
 statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt | for_stmt ;
 for_stmt    -> "for" "(" (var_decl | expr_stmt | ";") expression? ";" expression? ")" statement ;
@@ -68,7 +56,9 @@ equality    -> comparison (("==" | "!=") comparison)* ;
 comparison  -> term (("<" | "<=" | ">" | ">=") term)* ;
 term        -> factor (("-" | "+") factor)* ;
 factor      -> unary (("*" | "/") unary)* ;
-unary       -> ("-" | "!") unary | primary ;
+unary       -> ("-" | "!") unary | call ;
+call        -> primary ("(" arguments? ")")* ;
+arguments   -> expression ("," expression)* ;
 primary     -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
 */
 
@@ -97,6 +87,8 @@ impl Parser {
   fn declaration(&mut self) -> StmtResult {
     let res = if self.match_token(&[TokenType::Var]) {
       self.var_decl()
+    }  else if self.match_token(&[TokenType::Fun]) {
+      self.fun_decl("function")
     } else {
       self.stmt()
     };
@@ -107,7 +99,43 @@ impl Parser {
     }
 
     res
+  }
 
+  fn fun_decl(&mut self, kind: &str) -> StmtResult {
+    let name = self.consume(TokenType::Identifier, &format!("Expect {} name.", kind))?.clone();
+    self.consume(TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
+    let mut params = Vec::new();
+
+    if !self.check(TokenType::RightParen) {
+      loop {
+        if params.len() >= 255 {
+          return Err(ParseError::new("Can't have more than 255 parameters.", self.peek().clone()));
+        }
+
+        params.push(self.consume(TokenType::Identifier, "Expect parameter name.")?.clone());
+        if !self.match_token(&[TokenType::Comma]) {
+          break;
+        }
+      }
+    }
+
+    self.consume(TokenType::RightParen, "Expect ')' after parameters.")?;
+    self.consume(TokenType::LeftBrace, "Expect '{' before function body.")?;
+
+    let body = self.block()?;
+
+    Ok(Stmt::FunDecl(
+      FunDecl {
+        name,
+        params,
+        body: Block {
+          stmts: match body {
+            Stmt::Block(b) => b.stmts,
+            _ => vec![body],
+          },
+        },
+      }
+    ))
   }
 
   fn var_decl(&mut self) -> StmtResult {
@@ -240,6 +268,7 @@ impl Parser {
         stmts.push(stmt);
       }
     }
+
     self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
     Ok(Stmt::Block(
       Block {
@@ -391,7 +420,45 @@ impl Parser {
       ));
     }
 
-    self.primary()
+    self.call()
+  }
+
+  fn call(&mut self) -> ExprResult {
+    let mut expr = self.primary()?;
+
+    loop {
+      if self.match_token(&[TokenType::LeftParen]) {
+        expr = self.finish_call(expr)?;
+      } else {
+        break;
+      }
+    }
+
+    Ok(expr)
+  }
+
+  fn finish_call(&mut self, callee: Expr) -> ExprResult {
+    let mut args = Vec::new();
+    if !self.check(TokenType::RightParen) {
+      loop {
+        args.push(self.expression()?);
+
+        if args.len() > 255 {
+          return Err(ParseError::new("Can't have more than 255 arguments.", self.peek().clone()));
+        }
+
+        if !self.match_token(&[TokenType::Comma]) {
+          break;
+        }
+      }
+    }
+
+    let paren = self.consume(TokenType::RightParen, "Expect ')' after arguments.")?.clone();
+    Ok(Expr::Call(Call{
+      callee: Box::new(callee),
+      paren,
+      args,
+    }))
   }
 
   fn primary(&mut self) -> ExprResult {

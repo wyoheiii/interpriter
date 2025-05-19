@@ -1,3 +1,4 @@
+use crate::interpreter::Fun;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -5,6 +6,7 @@ pub enum Value {
   Number(f64),
   String(String),
   Boolean(bool),
+  Fun(Fun),
   Nil,
 }
 
@@ -21,6 +23,7 @@ impl fmt::Display for Value {
           },
           Value::String(s) => s.clone(),
           Value::Boolean(b) => b.to_string(),
+          Value::Fun(f) => f.to_string(),
           Value::Nil => "nil".to_string(),
       })
   }

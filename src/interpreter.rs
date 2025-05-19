@@ -1,20 +1,5 @@
 use crate::expr::{
-  Literal,
-  Grouping,
-  Binary,
-  Unary,
-  Expr,
-  UnaryOperator,
-  BinaryOperator,
-  LogicalOperator,
-  Stmt,
-  Variable,
-  VarDecl,
-  Assign,
-  Block,
-  If,
-  Logical,
-  While,
+  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -39,6 +24,10 @@ pub enum RunTimeError {
     token: Token,
     message: String,
   },
+  CallError {
+    token: Token,
+    message: String,
+  },
 }
 
 impl fmt::Display for RunTimeError {
@@ -51,11 +40,62 @@ impl fmt::Display for RunTimeError {
         write!(f, "Run-time error at {}:{}: {} {} {}: {}", left.line, left.column, left.lexeme, operator, right.lexeme, message)
       }
       RunTimeError::UndefinedVariable { token, message } => {
-        write!(f, "Run-time error at {}:{}: {}", token.line, token.column, message)
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
+      RunTimeError::CallError { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
       }
     }
   }
 }
+
+trait Callable {
+  fn arity(&self) -> usize;
+  fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> ExprResult;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Fun {
+  decl: FunDecl,
+}
+
+impl Fun {
+  pub fn new(decl: FunDecl) -> Self {
+    Fun { decl }
+  }
+}
+
+impl Callable for Fun {
+  fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> ExprResult {
+    if args.len() != self.decl.params.len() {
+      return Err(RunTimeError::CallError {
+        token: self.decl.name.clone(),
+        message: format!("Expected {} arguments but got {}", self.decl.params.len(), args.len()),
+      });
+    }
+    let prev_env = interpreter.env.clone();
+    let env = Rc::new(RefCell::new(Environment::new(Some(interpreter.env.clone()))));
+    for (i, param) in self.decl.params.iter().enumerate() {
+      env.borrow_mut().define(args[i].clone(), param.clone());
+    }
+
+    interpreter.block_stmt(&self.decl.body, env)?;
+    interpreter.env = prev_env;
+    Ok(Value::Nil)
+  }
+
+  fn arity(&self) -> usize {
+    self.decl.params.len()
+  }
+}
+
+impl fmt::Display for Fun {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "<function {}>", self.decl.name.lexeme)
+  }
+}
+
+
 
 #[derive(Debug)]
 pub struct Interpreter {
@@ -86,10 +126,17 @@ impl Interpreter {
       Stmt::Expr(expr) => self.expr_stmt(expr),
       Stmt::Print(expr) => self.print_stmt(expr),
       Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
-      Stmt::Block(block) => self.block_stmt(block),
+      Stmt::Block(block) => self.block_stmt(block, self.env.clone()),
       Stmt::If(if_stmt) => self.if_stmt(if_stmt),
       Stmt::While(while_stmt) => self.while_stmt(while_stmt),
+      Stmt::FunDecl(fun_decl) => self.fun_decl_stmt(fun_decl),
     }
+  }
+
+  fn fun_decl_stmt(&mut self, fun_decl: &FunDecl) -> StmtResult {
+    let fun = Fun::new(fun_decl.clone());
+    self.env.borrow_mut().define(Value::Fun(fun), fun_decl.name.clone());
+    Ok(())
   }
 
   fn while_stmt(&mut self, while_stmt: &While) -> StmtResult {
@@ -113,8 +160,8 @@ impl Interpreter {
     }
   }
 
-  fn block_stmt(&mut self, block: &Block) -> StmtResult {
-    let prev_env = self.env.clone();
+  fn block_stmt(&mut self, block: &Block, env: Rc<RefCell<Environment>>) -> StmtResult {
+    let prev_env = env.clone();
     self.env = Rc::new(RefCell::new(Environment::new(Some(prev_env.clone()))));
     for stmt in &block.stmts {
       let res = self.interpret_stmt(stmt);
@@ -158,7 +205,35 @@ impl Interpreter {
       Expr::Variable(variable) => self.interpret_variable(variable),
       Expr::Assign(assign ) => self.interpret_assign(assign),
       Expr::Logical(logical) => self.interpret_logical(logical),
+      Expr::Call(call) => self.interpret_call(call),
     }
+  }
+
+  fn interpret_call(&mut self, call: &Call) -> ExprResult {
+    let callee = self.interpret_expr(&call.callee)?;
+
+    let args: Vec<Value> = call.args.iter()
+      .map(|arg| self.interpret_expr(arg))
+      .collect::<Result<Vec<_>, _>>()?;
+
+    let fun = match callee {
+      Value::Fun(fun) => fun,
+      _ => {
+        return Err(RunTimeError::CallError {
+          token: call.paren.clone(),
+          message: "Can only call functions".to_string(),
+        });
+      },
+    };
+
+    if fun.arity() != args.len() {
+      return Err(RunTimeError::CallError {
+        token: call.paren.clone(),
+        message: format!("Expected {} arguments but got {}", fun.arity(), args.len()),
+      });
+    }
+
+    fun.call(self, args)
   }
 
   fn interpret_logical(&mut self, logical: &Logical) -> ExprResult {
