@@ -1,5 +1,5 @@
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl
+  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -81,6 +81,10 @@ impl Callable for Fun {
 
     interpreter.block_stmt(&self.decl.body, env)?;
     interpreter.env = prev_env;
+    if let Some(value) = interpreter.return_value.clone() {
+      interpreter.return_value = None;
+      return Ok(value);
+    }
     Ok(Value::Nil)
   }
 
@@ -100,6 +104,7 @@ impl fmt::Display for Fun {
 #[derive(Debug)]
 pub struct Interpreter {
   env : Rc<RefCell<Environment>>,
+  return_value: Option<Value>,
 }
 
 type ExprResult = Result<Value, RunTimeError>;
@@ -108,6 +113,7 @@ impl Interpreter {
   pub fn new() -> Self {
     Interpreter {
       env: Rc::new(RefCell::new(Environment::new(None))),
+      return_value: None,
     }
   }
 
@@ -122,6 +128,10 @@ impl Interpreter {
   }
 
   fn interpret_stmt(&mut self, stmt: &Stmt) -> StmtResult {
+    if self.return_value.is_some() {
+      return Ok(());
+    }
+    
     match stmt {
       Stmt::Expr(expr) => self.expr_stmt(expr),
       Stmt::Print(expr) => self.print_stmt(expr),
@@ -130,7 +140,17 @@ impl Interpreter {
       Stmt::If(if_stmt) => self.if_stmt(if_stmt),
       Stmt::While(while_stmt) => self.while_stmt(while_stmt),
       Stmt::FunDecl(fun_decl) => self.fun_decl_stmt(fun_decl),
+      Stmt::Return(return_stmt) => self.ret_stmt(return_stmt),
     }
+  }
+
+  fn ret_stmt(&mut self, return_stmt: &Return) -> StmtResult {
+    if let Some(value) = &return_stmt.value {
+      self.return_value = Some(self.interpret_expr(value)?);
+    } else {
+      self.return_value = Some(Value::Nil);
+    }
+    Ok(())
   }
 
   fn fun_decl_stmt(&mut self, fun_decl: &FunDecl) -> StmtResult {

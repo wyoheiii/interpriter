@@ -1,6 +1,6 @@
 use crate::token::{self, Token, TokenType};
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While
+  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, Return
 };
 use std::fmt;
 
@@ -41,7 +41,8 @@ funDecl     -> "fun" function ;
 function    -> IDENTIFIER "(" parameters? ")" block ;
 parameters  -> IDENTIFIER ("," IDENTIFIER)* ;
 var_decl    -> "var" IDENTIFIER "=" expression ";" ;
-statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt | for_stmt ;
+statement   -> expr_stmt | print_stmt | block | if_stmt | while_stmt | for_stmt | return_stmt ;
+return_stmt -> "return" expression? ";" ;
 for_stmt    -> "for" "(" (var_decl | expr_stmt | ";") expression? ";" expression? ")" statement ;
 while_stmt  -> "while" "(" expression ")" statement ;
 if_stmt     -> "if" "(" expression ")" statement ("else" statement)? ;
@@ -89,6 +90,8 @@ impl Parser {
       self.var_decl()
     }  else if self.match_token(&[TokenType::Fun]) {
       self.fun_decl("function")
+    } else if self.match_token(&[TokenType::Return]) {
+      self.ret_stmt()
     } else {
       self.stmt()
     };
@@ -99,6 +102,23 @@ impl Parser {
     }
 
     res
+  }
+
+  fn ret_stmt(&mut self) -> StmtResult {
+    let keyword = self.previous().clone();
+    let value = if !self.check(TokenType::Semicolon) {
+      Some(Box::new(self.expression()?))
+    } else {
+      None
+    };
+
+    self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+    Ok(Stmt::Return(
+      Return {
+        keyword,
+        value,
+      }
+    ))
   }
 
   fn fun_decl(&mut self, kind: &str) -> StmtResult {

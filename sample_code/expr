@@ -42,16 +42,16 @@
 // }
 
 var n = 4;
-print n;
-fun p(n) {
-  if (n > 0) {
-    p(n - 1);
+var hoge = 1;
+fun fib(n) {
+  if (n < 2) {
+    return n;
   }
-  print n;
+  return fib(n - 1) + fib(n - 2);
 }
 
-//print n;
-
-p(3);
+for (var i = 0; i < 20; i = i + 1) {
+  print fib(i);
+}
 
 print n;

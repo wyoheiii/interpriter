@@ -21,6 +21,13 @@ pub enum Stmt {
   Block(Block),
   If(If),
   While(While),
+  Return(Return),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Return {
+  pub keyword: token::Token,
+  pub value: Option<Box<Expr>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
