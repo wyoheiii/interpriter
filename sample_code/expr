@@ -68,3 +68,10 @@ fun makec() {
 var c = makec();
 c();
 c();
+
+var a = 1;
+
+{
+  var a = 2;
+  print a;
+}
