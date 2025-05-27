@@ -106,6 +106,7 @@ impl fmt::Display for Fun {
 pub struct Interpreter {
   env : Rc<RefCell<Environment>>,
   return_value: Option<Value>,
+  locals: Map<Token, usize>,
 }
 
 type ExprResult = Result<Value, RunTimeError>;
@@ -115,6 +116,7 @@ impl Interpreter {
     Interpreter {
       env: Rc::new(RefCell::new(Environment::new(None))),
       return_value: None,
+      locals: Map::new(),
     }
   }
 
@@ -419,6 +421,10 @@ impl Interpreter {
       (Value::Boolean(a), Value::Boolean(b)) => a == b,
       _ => false,
     }
+  }
+
+  pub fn resolve(&mut self, token: Token, depth: usize) {
+    self.locals.insert(expr, depth);
   }
 
 }

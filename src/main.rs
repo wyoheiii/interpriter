@@ -5,6 +5,7 @@ mod parser;
 mod interpreter;
 mod environment;
 mod value;
+mod resolver;
 use std::{io::{self, Write}};
 
 // todo replを実装する
