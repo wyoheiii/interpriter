@@ -1,9 +1,9 @@
-use std::fmt;
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Interpreter, RunTimeError};
 use crate::expr::{
-	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical
+	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical, Return
 };
 use crate::token::Token;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct Scope(HashMap<String, bool>);
@@ -31,7 +31,7 @@ impl Scope {
 
 
 pub struct Resolver<'a> {
-	interpreter: &'a Interpreter,
+	interpreter: &'a mut Interpreter,
 	scopes: Vec<Scope>,
 }
 
@@ -42,30 +42,21 @@ enum ResolverError {
 	},
 }
 
-impl fmt::Display for ResolverError<'_> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			ResolverError::UndefinedVariable { message, token } => {
-				write!(f, "Error: {} at {}", message, token)
-			}
-		}
-	}
-}
-
-type ResolveResult<T> = Result<T, ResolverError>;
+type ResolveResult<T> = Result<T, RunTimeError>;
 
 impl <'a> Resolver<'a> {
-	pub fn new(interpreter: &'a Interpreter) -> Self {
+	pub fn new(interpreter: &'a mut Interpreter) -> Self {
 		Resolver { 
 			interpreter,
 			scopes: Vec::new()
 		}
 	}
 
-	fn resolve(&mut self, stmts: &[Stmt]) {
-		stmts.iter().for_each( |s| 
+	fn resolve(&mut self, stmts: &[Stmt])-> ResolveResult<()> {
+		stmts.iter().map( |s| 
 			self.resolve_stmt(s)
-		);
+		).collect::<Result<_, _>>()?;
+		Ok(())
 	}
 	
 	fn resolve_expr(&mut self, expr: &Expr) -> ResolveResult<()> {
@@ -73,7 +64,6 @@ impl <'a> Resolver<'a> {
 			Expr::Variable(var) => self.variable_expr(var)?,
 			Expr::Assign(a) => self.assign_expr(a)?,
 			Expr::Binary(b) => self.binary_expr(b)?,
-			Expr::Unary(u) => self.unary_expr(u)?,
 			Expr::Call(call) => self.call_expr(call)?,
 			Expr::Grouping(g) => self.resolve_expr(&g.expr)?,
 			Expr::Logical(l) => self.logical_expr(l)?,
@@ -89,8 +79,8 @@ impl <'a> Resolver<'a> {
 			Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
 			Stmt::FunDecl(f) => self.fun_decl_stmt(f),
 			Stmt::If(if_stmt) => self.if_stmt(if_stmt)?,
-			Stmt::While(while_stmt) => self.while_stmt(while_stmt),
-			Stmt::Return(return_stmt) => self.return_stmt(return_stmt),
+			Stmt::While(while_stmt) => self.while_stmt(while_stmt)?,
+			Stmt::Return(return_stmt) => self.return_stmt(return_stmt)?,
 			Stmt::Expr(e) | Stmt::Print(e) => self.resolve_expr(e)?,
 		}
 		Ok(())
@@ -98,16 +88,16 @@ impl <'a> Resolver<'a> {
 	
 	pub fn block_stmt(&mut self, block: &Block) {
 		self.begin_scope();
-		resolve(block.stmts);
+		self.resolve(&block.stmts);
 		self.end_scope();
 	}
 
-	fn var_decl(&mut self, var_decl: &VarDecl) {
-		self.declare(var_decl.name);
-		if let Some(init) = &var_decl.init {
+	fn var_decl_stmt(&mut self, var_decl: &VarDecl) {
+		self.declare(&var_decl.name.lexeme);
+		if let Some(init) = &var_decl.initializer {
 			self.resolve_expr(init);
 		}
-		self.define(var_decl.name);
+		self.define(&var_decl.name.lexeme);
 	}
 
 	fn fun_decl_stmt(&mut self, fun_decl: &FunDecl) {
@@ -122,6 +112,13 @@ impl <'a> Resolver<'a> {
 		self.resolve_stmt(&if_stmt.then_branch)?;
 		if let Some(else_branch) = &if_stmt.else_branch {
 			self.resolve_stmt(else_branch)?;
+		}
+		Ok(())
+	}
+
+	fn return_stmt(&mut self, return_stmt: &Return)-> ResolveResult<()> {
+		if let Some(value) = &return_stmt.value {
+			self.resolve_expr(value)?;
 		}
 		Ok(())
 	}
@@ -141,7 +138,7 @@ impl <'a> Resolver<'a> {
 	fn variable_expr(&mut self, var: &Variable) -> ResolveResult<()> {
 		if !self.scopes.is_empty() 
 		&& !self.scopes.last().unwrap().is_defined(&var.name.lexeme) {
-			return Err(ResolverError::UndefinedVariable {
+			return Err(RunTimeError::AnalysisError {
 				message: "cant read local variable in its own initializer".to_string(),
 				token: var.name.clone(),
 			});

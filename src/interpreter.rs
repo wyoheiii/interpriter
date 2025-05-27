@@ -5,6 +5,7 @@ use crate::token::Token;
 use crate::value::Value;
 use crate::environment::Environment;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -28,6 +29,10 @@ pub enum RunTimeError {
     token: Token,
     message: String,
   },
+  AnalysisError {
+    token: Token,
+    message: String,
+  },
 }
 
 impl fmt::Display for RunTimeError {
@@ -44,6 +49,9 @@ impl fmt::Display for RunTimeError {
       }
       RunTimeError::CallError { token, message } => {
         write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
+      RunTimeError::AnalysisError { token, message } => {
+        write!(f, "Analysis error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
       }
     }
   }
@@ -106,7 +114,7 @@ impl fmt::Display for Fun {
 pub struct Interpreter {
   env : Rc<RefCell<Environment>>,
   return_value: Option<Value>,
-  locals: Map<Token, usize>,
+  locals: HashMap<Token, usize>,
 }
 
 type ExprResult = Result<Value, RunTimeError>;
@@ -116,7 +124,7 @@ impl Interpreter {
     Interpreter {
       env: Rc::new(RefCell::new(Environment::new(None))),
       return_value: None,
-      locals: Map::new(),
+      locals: HashMap::new(),
     }
   }
 
@@ -284,7 +292,9 @@ impl Interpreter {
 
   fn interpret_variable(&mut self, variable: &Variable) -> ExprResult {
     let binding = self.env.borrow_mut().get(&variable.name)?;
-    Ok(binding.value.clone())
+
+    //Ok(binding.value.clone())
+    Ok(look_up_variable)
   }
 
   fn interpret_literal(&self, literal: &Literal) -> ExprResult {
@@ -423,8 +433,14 @@ impl Interpreter {
     }
   }
 
-  pub fn resolve(&mut self, token: Token, depth: usize) {
-    self.locals.insert(expr, depth);
+  pub fn resolve(&mut self, token: &Token, depth: usize) {
+    self.locals.insert(token, depth);
+  }
+
+  fn look_up_variable(&self, name: &Token) -> ExprResult {
+    let distance = self.locals.get(name);
+    
+    
   }
 
 }
