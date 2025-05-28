@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, hash::Hash};
 use crate::token::token_type::TokenType;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +20,7 @@ impl fmt::Display for Literal {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Token {
   pub token_type: TokenType,
   pub lexeme: String,
@@ -28,6 +28,24 @@ pub struct Token {
   pub column: usize,
   pub literal: Option<Literal>,
 }
+
+impl PartialEq for Token {
+  fn eq(&self, other: &Self) -> bool {
+    self.token_type == other.token_type &&
+    self.lexeme == other.lexeme &&
+    self.line == other.line &&
+    self.column == other.column
+  }
+}
+
+impl Eq for Token {}
+
+impl Hash for Token {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    (self.token_type, self.lexeme.as_bytes(), self.line, self.column).hash(state)
+  }
+}
+
 
 impl Token {
   pub fn new(token_type: TokenType, lexeme: String, line: usize, column: usize, literal: Option<Literal>) -> Self {

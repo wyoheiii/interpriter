@@ -57,6 +57,14 @@ fn run(source: &str) {
     err.iter().for_each(|e| {eprintln!("{}", e);});
     return;
   }
-  interpreter::Interpreter::new().interpret(ast.unwrap());
+
+  let mut it = interpreter::Interpreter::new();
+  let res = resolver::Resolver::new(&mut it).resolve(&ast.clone().unwrap());
+  if let Err(err) = res {
+    eprintln!("{}", err);
+    return;
+  }
+
+  it.interpret(ast.unwrap());
 
 }

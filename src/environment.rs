@@ -60,6 +60,22 @@ impl Environment {
       token: token.clone(),
       message: format!("Undefined variable '{}'", token.lexeme),
     })
+  }
 
+  pub fn get_at(env: Rc<RefCell<Self>>, distance: usize, token: &Token) -> Result<Binding, RunTimeError> {
+    Self::ancestor(env, distance).borrow().get(token)
+  }
+
+  pub fn assign_at(env: Rc<RefCell<Self>>, distance: usize, token: &Token, value: Value) -> Result<(), RunTimeError> {
+    Self::ancestor(env, distance).borrow_mut().assign(token, value)
+  }
+
+  fn ancestor( env: Rc<RefCell<Self>>, distance: usize) -> Rc<RefCell<Self>> {
+    let mut current = env.clone();
+    for _ in 0..distance {
+      let next = current.borrow().enclosing.as_ref().expect("too much distance").clone();
+      current = next;
+    }
+    current
   }
 }

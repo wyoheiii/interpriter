@@ -112,6 +112,7 @@ impl fmt::Display for Fun {
 
 #[derive(Debug)]
 pub struct Interpreter {
+  globals: Rc<RefCell<Environment>>,
   env : Rc<RefCell<Environment>>,
   return_value: Option<Value>,
   locals: HashMap<Token, usize>,
@@ -121,8 +122,10 @@ type ExprResult = Result<Value, RunTimeError>;
 type StmtResult = Result<(), RunTimeError>;
 impl Interpreter {
   pub fn new() -> Self {
+    let global = Rc::new(RefCell::new(Environment::new(None)));
     Interpreter {
-      env: Rc::new(RefCell::new(Environment::new(None))),
+      env: global.clone(),
+      globals: global,
       return_value: None,
       locals: HashMap::new(),
     }
@@ -286,15 +289,16 @@ impl Interpreter {
 
   fn interpret_assign(&mut self, assign: &Assign) -> ExprResult {
     let value = self.interpret_expr(&assign.value)?;
-    self.env.borrow_mut().assign(&assign.name, value.clone())?;
-    Ok(Value::Nil)
+    if let Some(distance) = self.locals.get(&assign.name) {
+      Environment::assign_at(self.env.clone(), *distance, &assign.name, value.clone())?;
+    } else {
+      self.globals.borrow_mut().assign(&assign.name, value.clone())?;
+    }
+    Ok(value)
   }
 
   fn interpret_variable(&mut self, variable: &Variable) -> ExprResult {
-    let binding = self.env.borrow_mut().get(&variable.name)?;
-
-    //Ok(binding.value.clone())
-    Ok(look_up_variable)
+    Ok(self.look_up_variable(&variable.name)?)
   }
 
   fn interpret_literal(&self, literal: &Literal) -> ExprResult {
@@ -434,13 +438,16 @@ impl Interpreter {
   }
 
   pub fn resolve(&mut self, token: &Token, depth: usize) {
-    self.locals.insert(token, depth);
+
+    self.locals.insert(token.clone(), depth);
   }
 
-  fn look_up_variable(&self, name: &Token) -> ExprResult {
-    let distance = self.locals.get(name);
-    
-    
+  fn look_up_variable(&mut self, name: &Token) -> ExprResult {
+    if let Some(distance) = self.locals.get(name) {
+      return Environment::get_at(self.env.clone(), *distance, name).map(|binding| binding.value.clone());
+    }
+
+    Ok(self.globals.borrow().get(name).map(|binding| binding.value)?)
   }
 
 }

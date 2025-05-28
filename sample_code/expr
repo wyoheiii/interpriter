@@ -41,37 +41,50 @@
 //   print b;
 // }
 
-var n = 4;
-fun fib(n) {
-  if (n < 2) {
-    return n;
-  }
-  return fib(n - 1) + fib(n - 2);
-}
+// var n = 4;
+// fun fib(n) {
+//   if (n < 2) {
+//     return n;
+//   }
+//   return fib(n - 1) + fib(n - 2);
+// }
 
-for (var i = 0; i < 20; i = i + 1) {
-  print fib(i);
-}
+// for (var i = 0; i < 20; i = i + 1) {
+//   print fib(i);
+// }
 
-print n;
+// print n;
 
-fun makec() {
-  var a = 0;
-  fun c() {
-    a = a + 1;
-    print a;
-  }
+// fun makec() {
+//   var a = 0;
+//   fun c() {
+//     a = a + 1;
+//     print a;
+//   }
 
-  return c;
-}
+//   return c;
+// }
 
-var c = makec();
-c();
-c();
+// var c = makec();
+// c();
+// c();
 
-var a = 1;
+// var a = 1;
 
+// {
+//   var a = 2;
+//   print a;
+// }
+
+var a = "aaa";
 {
-  var a = 2;
+fun f() {
   print a;
+}
+
+f();
+
+var a = "bbb";
+
+f();
 }
