@@ -90,44 +90,59 @@
 // }
 
 
-class hoge {
-  a() {
-    return "unko";
+// class hoge {
+//   a() {
+//     return "unko";
+//   }
+// }
+
+// var b = hoge();
+// print b.a();
+
+// class hoge {
+//   a() {
+//     return "unti";
+//   }
+// }
+
+// var c = hoge();
+// print b.a();
+// print c.a();
+
+
+// class t {
+//   g() {
+//     fun f() {
+//       print this;
+//     }
+//     return f;
+//   }
+// }
+
+// var c = t().g();
+
+
+// class foo {
+//   init() {
+//     return;
+//     print this;
+//   }
+// }
+
+// var fooo = foo();
+// print fooo;
+
+class a {
+  c() {
+    print "c";
   }
 }
 
-var b = hoge();
-print b.a();
-
-class hoge {
-  a() {
-    return "unti";
+class d < a {
+  c() {
+    super.c();
+    print "d";
   }
 }
 
-var c = hoge();
-print b.a();
-print c.a();
-
-
-class t {
-  g() {
-    fun f() {
-      print this;
-    }
-    return f;
-  }
-}
-
-var c = t().g();
-
-
-class foo {
-  init() {
-    return;
-    print this;
-  }
-}
-
-var fooo = foo();
-print fooo;
+d().c();

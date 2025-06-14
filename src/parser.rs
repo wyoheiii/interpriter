@@ -1,6 +1,6 @@
 use crate::token::{self, Token, TokenType};
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, Return, ClassDecl, Get, Set, This,
+  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, Return, ClassDecl, Get, Set, This, Super
 };
 use std::fmt;
 
@@ -37,7 +37,7 @@ pub struct Parser {
 /*
 program     -> declaration* EOF ;
 declaration -> classDecl | funDecl | var_decl | statement ;
-classDecl  -> "class" IDENTIFIER "{" function* "}" ;
+classDecl  -> "class" IDENTIFIER ("<" IDENTIFIER)? "{" function* "}" ;
 funDecl     -> "fun" function ;
 function    -> IDENTIFIER "(" parameters? ")" block ;
 parameters  -> IDENTIFIER ("," IDENTIFIER)* ;
@@ -61,7 +61,7 @@ factor      -> unary (("*" | "/") unary)* ;
 unary       -> ("-" | "!") unary | call ;
 call        -> primary ("(" arguments? ")" | "."IDENTIFIER)* ;
 arguments   -> expression ("," expression)* ;
-primary     -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
+primary     -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER;
 */
 
 type ExprResult = Result<Expr, ParseError>;
@@ -109,6 +109,18 @@ impl Parser {
 
   fn class_decl(&mut self) -> StmtResult {
     let name = self.consume(TokenType::Identifier, "Expect class name.")?.clone();
+
+    let super_class = if self.match_token(&[TokenType::Less]) {
+      self.consume(TokenType::Identifier, "Expect superclass name.")?;
+      Some(Expr::Variable(
+        Variable {
+          name: self.previous().clone(),
+        }
+      ))
+    } else {
+      None
+    };
+
     self.consume(TokenType::LeftBrace, "Expect '{' before class body.")?;
 
     let mut methods = Vec::new();
@@ -130,6 +142,7 @@ impl Parser {
       ClassDecl {
         name,
         methods,
+        super_class,
       }
     ))
   }
@@ -578,6 +591,20 @@ impl Parser {
         }
         ));
     }
+
+    if self.match_token(&[TokenType::Super]) {
+      let keyword = self.previous().clone();
+      self.consume(TokenType::Dot, "Expect '.' after 'super'.")?;
+      let method = self.consume(TokenType::Identifier, "Expect superclass method name.")?.clone();
+
+      return Ok(Expr::Super(
+        Super {
+          keyword,
+          method,
+        }
+      ));
+    }
+
     // to
     Err(ParseError::new("Expect expression.", self.peek().clone()))
   }

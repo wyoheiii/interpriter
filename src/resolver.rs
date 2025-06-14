@@ -1,6 +1,6 @@
 use crate::interpreter::Interpreter;
 use crate::expr::{
-	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical, Return, ClassDecl, Get, Set, This,
+	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical, Return, ClassDecl, Get, Set, This, Super
 };
 use crate::token::Token;
 use std::collections::HashMap;
@@ -40,6 +40,7 @@ enum FunctionType {
 enum ClassType {
   None,
   Class,
+  SubClass,
 }
 
 pub struct Resolver<'a> {
@@ -92,6 +93,7 @@ impl <'a> Resolver<'a> {
       Expr::Get(g) => self.resolve_get(g)?,
       Expr::Set(s) => self.resolve_set(s)?,
       Expr::This(t) => self.resolve_this(t)?,
+      Expr::Super(s) => self.resolve_super(s)?,
 			Expr::Literal(_) => {}, // Literals do not need resolution
 		}
 		Ok(())
@@ -110,6 +112,23 @@ impl <'a> Resolver<'a> {
 		}
 		Ok(())
 	}
+
+  fn resolve_super(&mut self, super_class: &Super) -> ResolveResult {
+    if self.current_class == ClassType::None {
+      return Err(ResolveError {
+        message: "cannot use 'super' outside of a class".to_string(),
+        token: super_class.keyword.clone(),
+      });
+    } else if self.current_class != ClassType::SubClass {
+      return Err(ResolveError {
+        message: "cannot use 'super' in a class with no superclass".to_string(),
+        token: super_class.keyword.clone(),
+      });
+    }
+
+    self.resolve_local(&super_class.keyword);
+    Ok(())
+  }
 
   fn resolve_this(&mut self, this: &This) -> ResolveResult {
     if self.current_class == ClassType::None {
@@ -138,6 +157,24 @@ impl <'a> Resolver<'a> {
     self.current_class = ClassType::Class;
     self.declare(&class.name)?;
     self.define(&class.name);
+
+    if let Some(Expr::Variable(super_class))= &class.super_class {
+      if class.name.lexeme == super_class.name.lexeme {
+        return Err(ResolveError {
+          message: "a class cannot inherit from itself".to_string(),
+          token: super_class.name.clone(),
+        });
+      }
+      self.current_class = ClassType::SubClass;
+      self.resolve_expr(&Expr::Variable(super_class.clone()))?;
+    }
+
+    if class.super_class.is_some() {
+      self.begin_scope();
+      self.scopes.last_mut().unwrap().declare("super");
+      self.scopes.last_mut().unwrap().define("super");
+    }
+
     self.begin_scope();
     self.scopes.last_mut().unwrap().declare("this");
     self.scopes.last_mut().unwrap().define("this");
@@ -153,6 +190,11 @@ impl <'a> Resolver<'a> {
     }
 
     self.end_scope();
+
+    if class.super_class.is_some() {
+      self.end_scope();
+    }
+
     self.current_class = enclosing;
     Ok(())
   }

@@ -68,6 +68,16 @@ impl Token {
     }
   }
 
+  pub fn super_dummy() -> Self {
+    Token {
+      token_type: TokenType::Super,
+      lexeme: "super".to_string(),
+      line: 0,
+      column: 0,
+      literal: None,
+    }
+  }
+
   pub fn to_string(&self) -> String {
     format!("{:?} {} {}", self.token_type, self.lexeme, self.literal.as_ref().map_or("None".to_string(), |l| l.to_string()))
   }

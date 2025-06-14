@@ -13,6 +13,7 @@ pub enum Expr {
   Get(Get),
   Set(Set),
   This(This),
+  Super(Super),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +32,7 @@ pub enum Stmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
   pub name: token::Token,
+  pub super_class: Option<Expr>, // variable
   pub methods: Vec<FunDecl>,
 }
 
@@ -71,6 +73,12 @@ pub struct Block {
 pub struct VarDecl {
   pub name: token::Token,
   pub initializer: Option<Box<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Super {
+  pub keyword: token::Token,
+  pub method: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]

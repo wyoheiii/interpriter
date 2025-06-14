@@ -1,12 +1,12 @@
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return, ClassDecl, Get,Set, This,
+  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return, ClassDecl, Get,Set, This, Super,
 };
 use crate::token::Token;
 use crate::value::Value;
 use crate::environment::Environment;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt;
+use std::{env, fmt};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,6 +41,14 @@ pub enum RunTimeError {
     token: Token,
     message: String,
   },
+  ClassError {
+    token: Token,
+    message: String,
+  },
+  SuperError {
+    token: Token,
+    message: String,
+  },
 }
 
 impl fmt::Display for RunTimeError {
@@ -65,6 +73,12 @@ impl fmt::Display for RunTimeError {
         write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
       }
       RunTimeError::SetError { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
+      RunTimeError::ClassError { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
+      RunTimeError::SuperError { token, message } => {
         write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
       }
     }
@@ -122,16 +136,23 @@ impl fmt::Display for Instance {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Class {
   name: Token,
+  super_class: Option<Box<Class>>,
   methods: HashMap<String, Fun>,
 }
 
 impl Class {
-  pub fn new(name: Token, methods: HashMap<String, Fun>) -> Self {
-    Class { name, methods }
+  pub fn new(name: Token, super_class: Option<Box<Class>> , methods: HashMap<String, Fun>) -> Self {
+    Class { name, super_class , methods }
   }
 
   pub fn find_method(&self, name: &str) -> Option<Fun> {
-    self.methods.get(name).cloned()
+    if let Some(method) = self.methods.get(name) {
+      return Some(method.clone());
+    }
+    if let Some(super_class) = &self.super_class {
+      return super_class.find_method(name);
+    }
+    None
   }
 }
 
@@ -285,7 +306,30 @@ impl Interpreter {
   }
 
   fn class_decl_stmt(&mut self, class: &ClassDecl) -> StmtResult {
+
+    let super_class;
+
+    if let Some(super_class_expr) = &class.super_class {
+      let c = self.interpret_expr(super_class_expr)?;
+      if let Value::Class(class) = c {
+        super_class = Some(Box::new(class));
+      } else {
+        return Err(RunTimeError::ClassError {
+          token: class.name.clone(),
+          message: "Superclass must be a class".to_string(),
+        });
+      }
+    } else {
+      super_class = None;
+    }
+
     self.env.borrow_mut().define(Value::Nil, class.name.clone());
+
+    if super_class.is_some() {
+      self.env = Rc::new(RefCell::new(Environment::new(Some(self.env.clone()))));
+      let name = class.name.clone();
+      self.env.borrow_mut().define(Value::Class(*super_class.clone().unwrap()), Token::super_dummy());
+    }
 
 
     let mut methods: HashMap<String, Fun> = HashMap::new();
@@ -294,7 +338,13 @@ impl Interpreter {
       methods.insert(method.name.lexeme.clone(), fun);
     }
 
-    let class = Class::new(class.name.clone(), methods);
+    let class = Class::new(class.name.clone(), super_class.clone(), methods);
+
+    if super_class.is_some() {
+      let enclosing = self.env.borrow().enclosing.clone();
+      self.env = enclosing.unwrap();
+    }
+
 
     self.env.borrow_mut().assign(&class.name, Value::Class(class.clone()))?;
 
@@ -386,7 +436,45 @@ impl Interpreter {
       Expr::Get(get) => self.interpret_get(get),
       Expr::Set(set) => self.interpret_set(set),
       Expr::This(this) => self.interpret_this(this),
+      Expr::Super(s) => self.interpret_super(s),
     }
+  }
+
+  fn interpret_super(&mut self, _super: &Super) -> ExprResult {
+    let distance = self.locals.get(&_super.keyword)
+      .ok_or(RunTimeError::SuperError {
+        token: _super.keyword.clone(),
+        message: "Cannot use 'super' outside of a class".to_string(),
+      })?;
+
+    let super_class = Environment::get_at(self.env.clone(), *distance, &_super.keyword)?.value;
+    let val;
+    let method = match super_class {
+      Value::Class(class) => {
+        val = if let Value::Instance(i) = Environment::get_at(self.env.clone(), *distance - 1, &Token::this_dummy())?.value {
+          i
+        } else {
+          return Err(RunTimeError::SuperError {
+            token: _super.keyword.clone(),
+            message: "Cannot use 'super' outside of a class".to_string(),
+          });
+        };
+
+        class.find_method(&_super.method.lexeme)
+          .ok_or(RunTimeError::SuperError {
+            token: _super.method.clone(),
+            message: format!("Undefined method '{}'", _super.method.lexeme),
+          })?
+        }
+      _ => {
+        return Err(RunTimeError::SuperError {
+          token: _super.keyword.clone(),
+          message: "Superclass must be a class".to_string(),
+        });
+      },
+    };
+
+    Ok(Value::Fun(method.bind(val)))
   }
 
   fn interpret_this(&mut self, this: &This) -> ExprResult {
