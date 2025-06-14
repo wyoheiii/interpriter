@@ -1,5 +1,9 @@
+use crate::interpreter::Class;
 use crate::interpreter::Fun;
+use crate::interpreter::Instance;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -7,6 +11,8 @@ pub enum Value {
   String(String),
   Boolean(bool),
   Fun(Fun),
+  Class(Class),
+  Instance(Instance),
   Nil,
 }
 
@@ -24,7 +30,10 @@ impl fmt::Display for Value {
           Value::String(s) => s.clone(),
           Value::Boolean(b) => b.to_string(),
           Value::Fun(f) => f.to_string(),
+          Value::Instance(i) => i.to_string(),
+          Value::Class(c) => c.to_string(),
           Value::Nil => "nil".to_string(),
+
       })
   }
 }

@@ -10,6 +10,9 @@ pub enum Expr {
   Assign(Assign),
   Logical(Logical),
   Call(Call),
+  Get(Get),
+  Set(Set),
+  This(This),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,6 +25,13 @@ pub enum Stmt {
   If(If),
   While(While),
   Return(Return),
+  ClassDecl(ClassDecl),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDecl {
+  pub name: token::Token,
+  pub methods: Vec<FunDecl>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,6 +71,24 @@ pub struct Block {
 pub struct VarDecl {
   pub name: token::Token,
   pub initializer: Option<Box<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct This {
+  pub keyword: token::Token,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Set {
+  pub object: Box<Expr>,
+  pub name: token::Token,
+  pub value: Box<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Get {
+  pub object: Box<Expr>,
+  pub name: token::Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]

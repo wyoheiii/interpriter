@@ -1,6 +1,6 @@
 use crate::interpreter::Interpreter;
 use crate::expr::{
-	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical, Return
+	Assign, Block, FunDecl, Stmt, Variable, If, While, VarDecl, Expr, Binary, Call, Logical, Return, ClassDecl, Get, Set, This,
 };
 use crate::token::Token;
 use std::collections::HashMap;
@@ -32,12 +32,21 @@ impl Scope {
 enum FunctionType {
   None,
   Function,
+  Init,
+  Method,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ClassType {
+  None,
+  Class,
 }
 
 pub struct Resolver<'a> {
 	interpreter: &'a mut Interpreter,
 	scopes: Vec<Scope>,
   current_func: FunctionType,
+  current_class: ClassType,
 }
 
 pub struct ResolveError {
@@ -60,6 +69,7 @@ impl <'a> Resolver<'a> {
 			interpreter,
 			scopes: Vec::new(),
       current_func: FunctionType::None,
+      current_class: ClassType::None,
 		}
 	}
 
@@ -79,6 +89,9 @@ impl <'a> Resolver<'a> {
 			Expr::Grouping(g) => self.resolve_expr(&g.expr)?,
 			Expr::Logical(l) => self.logical_expr(l)?,
 			Expr::Unary(u) => self.resolve_expr(&u.right)?,
+      Expr::Get(g) => self.resolve_get(g)?,
+      Expr::Set(s) => self.resolve_set(s)?,
+      Expr::This(t) => self.resolve_this(t)?,
 			Expr::Literal(_) => {}, // Literals do not need resolution
 		}
 		Ok(())
@@ -93,9 +106,56 @@ impl <'a> Resolver<'a> {
 			Stmt::While(while_stmt) => self.while_stmt(while_stmt)?,
 			Stmt::Return(return_stmt) => self.return_stmt(return_stmt)?,
 			Stmt::Expr(e) | Stmt::Print(e) => self.resolve_expr(e)?,
+      Stmt::ClassDecl(class) => self.class_decl_stmt(class)?,
 		}
 		Ok(())
 	}
+
+  fn resolve_this(&mut self, this: &This) -> ResolveResult {
+    if self.current_class == ClassType::None {
+      return Err(ResolveError {
+        message: "cannot use 'this' outside of a class".to_string(),
+        token: this.keyword.clone(),
+      });
+    }
+    self.resolve_local(&this.keyword);
+    Ok(())
+  }
+
+  fn resolve_set(&mut self, set: &Set) -> ResolveResult {
+    self.resolve_expr(&set.object)?;
+    self.resolve_expr(&set.value)?;
+    Ok(())
+  }
+
+  fn resolve_get(&mut self, get: &Get) -> ResolveResult {
+    self.resolve_expr(&get.object)?;
+    Ok(())
+  }
+
+  fn class_decl_stmt(&mut self, class:& ClassDecl) -> ResolveResult {
+    let enclosing = self.current_class;
+    self.current_class = ClassType::Class;
+    self.declare(&class.name)?;
+    self.define(&class.name);
+    self.begin_scope();
+    self.scopes.last_mut().unwrap().declare("this");
+    self.scopes.last_mut().unwrap().define("this");
+
+    for m in &class.methods {
+      let decl = if m.name.lexeme == "init" {
+        FunctionType::Init
+      } else {
+        FunctionType::Method
+      };
+
+      self.resolve_fun(m, decl)?;
+    }
+
+    self.end_scope();
+    self.current_class = enclosing;
+    Ok(())
+  }
 
 	fn block_stmt(&mut self, block: &Block)-> ResolveResult {
 		self.begin_scope();
@@ -142,6 +202,13 @@ impl <'a> Resolver<'a> {
     }
 
 		if let Some(value) = &return_stmt.value {
+      if self.current_func == FunctionType::Init {
+        return Err(ResolveError {
+          message: "cannot return a value from an initializer".to_string(),
+          token: return_stmt.keyword.clone(),
+        });
+      }
+
 			self.resolve_expr(value)?;
 		}
 		Ok(())

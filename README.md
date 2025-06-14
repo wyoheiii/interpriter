@@ -4,7 +4,9 @@
 break
 continue
 lambda
-参考演算子
+三項演算子
 repl
 型
 最適化
+静的メソッド
+map,配列,vec

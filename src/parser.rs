@@ -1,6 +1,6 @@
 use crate::token::{self, Token, TokenType};
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, Return
+  Assign, Binary, BinaryOperator, Block, Call, Expr, FunDecl, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, Return, ClassDecl, Get, Set, This,
 };
 use std::fmt;
 
@@ -36,7 +36,8 @@ pub struct Parser {
 
 /*
 program     -> declaration* EOF ;
-declaration -> funDecl | var_decl | statement ;
+declaration -> classDecl | funDecl | var_decl | statement ;
+classDecl  -> "class" IDENTIFIER "{" function* "}" ;
 funDecl     -> "fun" function ;
 function    -> IDENTIFIER "(" parameters? ")" block ;
 parameters  -> IDENTIFIER ("," IDENTIFIER)* ;
@@ -50,7 +51,7 @@ block       -> "{" declaration* "}" ;
 expr_stmt   -> expression ";" ;
 print_stmt  -> "print" expression ";" ;
 expression  -> assignment ;
-assignment  -> IDENTIFIER "=" assignment | logic_or ;
+assignment  -> (call ".")? IDENTIFIER "=" assignment | logic_or ;
 logic_or    -> logic_and ("or" logic_and)* ;
 logic_and   -> equality ("and" equality)* ;
 equality    -> comparison (("==" | "!=") comparison)* ;
@@ -58,7 +59,7 @@ comparison  -> term (("<" | "<=" | ">" | ">=") term)* ;
 term        -> factor (("-" | "+") factor)* ;
 factor      -> unary (("*" | "/") unary)* ;
 unary       -> ("-" | "!") unary | call ;
-call        -> primary ("(" arguments? ")")* ;
+call        -> primary ("(" arguments? ")" | "."IDENTIFIER)* ;
 arguments   -> expression ("," expression)* ;
 primary     -> NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
 */
@@ -92,6 +93,8 @@ impl Parser {
       self.fun_decl("function")
     } else if self.match_token(&[TokenType::Return]) {
       self.ret_stmt()
+    } else if self.match_token(&[TokenType::Class]) {
+      self.class_decl()
     } else {
       self.stmt()
     };
@@ -102,6 +105,33 @@ impl Parser {
     }
 
     res
+  }
+
+  fn class_decl(&mut self) -> StmtResult {
+    let name = self.consume(TokenType::Identifier, "Expect class name.")?.clone();
+    self.consume(TokenType::LeftBrace, "Expect '{' before class body.")?;
+
+    let mut methods = Vec::new();
+    while !self.is_at_end() && !self.check(TokenType::RightBrace) {
+      match self.fun_decl("method") {
+        Ok(Stmt::FunDecl(method)) => methods.push(method),
+        Err(e) => {
+          return Err(e);
+        }
+        _ => {
+          return Err(ParseError::new("Expect method declaration.", self.peek().clone()));
+        }
+      }
+    }
+
+    self.consume(TokenType::RightBrace, "Expect '}' after class body.")?;
+
+    Ok(Stmt::ClassDecl(
+      ClassDecl {
+        name,
+        methods,
+      }
+    ))
   }
 
   fn ret_stmt(&mut self) -> StmtResult {
@@ -325,6 +355,14 @@ impl Parser {
             value: Box::new(value),
           }
         ));
+      } else if let Expr::Get(g) = expr {
+        return Ok(Expr::Set(
+          Set {
+            object: g.object,
+            name: g.name,
+            value: Box::new(value),
+          }
+        ));
       }
       Err(ParseError::new("Invalid assignment target.", equals))
     } else {
@@ -449,7 +487,16 @@ impl Parser {
     loop {
       if self.match_token(&[TokenType::LeftParen]) {
         expr = self.finish_call(expr)?;
-      } else {
+      } else if self.match_token(&[TokenType::Dot]){
+        let name = self.consume(TokenType::Identifier, "Expect property name after '.'")?.clone();
+
+        expr = Expr::Get(
+          Get {
+            object: Box::new(expr),
+            name,
+          }
+        );
+      }else {
         break;
       }
     }
@@ -514,6 +561,14 @@ impl Parser {
           expr: Box::new(expr),
         }
         ));
+    }
+
+    if self.match_token(&[TokenType::This]) {
+      return Ok(Expr::This(
+        This {
+          keyword: self.previous().clone(),
+        }
+      ));
     }
 
     if self.match_token(&[TokenType::Identifier]) {

@@ -1,5 +1,5 @@
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return
+  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return, ClassDecl, Get,Set, This,
 };
 use crate::token::Token;
 use crate::value::Value;
@@ -33,6 +33,14 @@ pub enum RunTimeError {
     token: Token,
     message: String,
   },
+  GetError {
+    token: Token,
+    message: String,
+  },
+  SetError {
+    token: Token,
+    message: String,
+  },
 }
 
 impl fmt::Display for RunTimeError {
@@ -53,6 +61,12 @@ impl fmt::Display for RunTimeError {
       RunTimeError::AnalysisError { token, message } => {
         write!(f, "Analysis error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
       }
+      RunTimeError::GetError { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
+      RunTimeError::SetError { token, message } => {
+        write!(f, "Run-time error at {}:{}: {}: {}", token.line, token.column, token.lexeme, message)
+      }
     }
   }
 }
@@ -63,14 +77,111 @@ trait Callable {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Instance {
+  class: Class,
+  fields: HashMap<String, Value>,
+}
+
+impl From<Class> for Instance {
+  fn from(class: Class) -> Self {
+    Instance::new(class)
+  }
+}
+
+impl Instance {
+  pub fn new(class: Class) -> Self {
+    Instance { class, fields: HashMap::new() }
+  }
+
+  pub fn get(&self, name: &Token) -> ExprResult {
+    if let Some(value) = self.fields.get(&name.lexeme) {
+      return Ok(value.clone());
+    }
+
+  if let Some(method) = self.class.find_method(&name.lexeme) {
+      return Ok(Value::Fun(method.bind(self.clone())));
+    }
+
+    Err(RunTimeError::GetError {
+      token: name.clone(),
+      message: format!("Undefined property '{}'", name.lexeme),
+    })
+  }
+
+  pub fn set(&mut self, name: Token, value:Value) {
+    self.fields.insert(name.lexeme, value);
+  }
+}
+
+impl fmt::Display for Instance {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{} instance", self.class.name.lexeme)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Class {
+  name: Token,
+  methods: HashMap<String, Fun>,
+}
+
+impl Class {
+  pub fn new(name: Token, methods: HashMap<String, Fun>) -> Self {
+    Class { name, methods }
+  }
+
+  pub fn find_method(&self, name: &str) -> Option<Fun> {
+    self.methods.get(name).cloned()
+  }
+}
+
+impl Callable for Class {
+  fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> ExprResult {
+    let instance = Instance::from(self.clone());
+
+    let init = self.find_method("init");
+    if init.is_some() {
+      init.unwrap().bind(instance.clone()).call(interpreter, args)?;
+    }
+
+    Ok(Value::Instance(instance))
+  }
+
+  fn arity(&self) -> usize {
+    let init = self.find_method("init");
+    match init {
+      Some(fun) => fun.arity(),
+      None => 0,
+    }
+  }
+}
+
+impl fmt::Display for Class {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.name.lexeme)
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Fun {
   decl: FunDecl,
   closure: Option<Rc<RefCell<Environment>>>,
+  is_init: bool,
 }
 
 impl Fun {
-  pub fn new(decl: FunDecl,closure: Option<Rc<RefCell<Environment>>> ) -> Self {
-    Fun { decl, closure }
+  pub fn new(decl: FunDecl,closure: Option<Rc<RefCell<Environment>>>, is_init: bool) -> Self {
+    Fun { decl, closure, is_init }
+  }
+
+  pub fn bind(&self, instance: Instance) -> Fun {
+    let env = Rc::new(RefCell::new(Environment::new(self.closure.clone())));
+    env.borrow_mut().define(Value::Instance(instance), Token::this_dummy());
+    Fun {
+      decl: self.decl.clone(),
+      closure: Some(env),
+      is_init: self.is_init,
+    }
   }
 }
 
@@ -90,10 +201,24 @@ impl Callable for Fun {
 
     interpreter.block_stmt(&self.decl.body, env)?;
     interpreter.env = prev_env;
+
+
+
+
     if let Some(value) = interpreter.return_value.clone() {
       interpreter.return_value = None;
+
+      if value == Value::Nil && self.is_init {
+        return Ok(Environment::get_at(self.closure.as_ref().unwrap().clone(), 0, &Token::this_dummy())?.value.clone());
+      }
+
       return Ok(value);
     }
+
+    if self.is_init {
+      return Ok(Environment::get_at(self.closure.as_ref().unwrap().clone(), 0, &Token::this_dummy())?.value.clone());
+    }
+
     Ok(Value::Nil)
   }
 
@@ -155,7 +280,25 @@ impl Interpreter {
       Stmt::While(while_stmt) => self.while_stmt(while_stmt),
       Stmt::FunDecl(fun_decl) => self.fun_decl_stmt(fun_decl),
       Stmt::Return(return_stmt) => self.ret_stmt(return_stmt),
+      Stmt::ClassDecl(class_decl) => self.class_decl_stmt(class_decl),
     }
+  }
+
+  fn class_decl_stmt(&mut self, class: &ClassDecl) -> StmtResult {
+    self.env.borrow_mut().define(Value::Nil, class.name.clone());
+
+
+    let mut methods: HashMap<String, Fun> = HashMap::new();
+    for method in &class.methods {
+      let fun = Fun::new(method.clone(), Some(self.env.clone()), method.name.lexeme == "init");
+      methods.insert(method.name.lexeme.clone(), fun);
+    }
+
+    let class = Class::new(class.name.clone(), methods);
+
+    self.env.borrow_mut().assign(&class.name, Value::Class(class.clone()))?;
+
+    Ok(())
   }
 
   fn ret_stmt(&mut self, return_stmt: &Return) -> StmtResult {
@@ -168,7 +311,7 @@ impl Interpreter {
   }
 
   fn fun_decl_stmt(&mut self, fun_decl: &FunDecl) -> StmtResult {
-    let fun = Fun::new(fun_decl.clone(), Some(self.env.clone()));
+    let fun = Fun::new(fun_decl.clone(), Some(self.env.clone()), false);
     self.env.borrow_mut().define(Value::Fun(fun), fun_decl.name.clone());
     Ok(())
   }
@@ -240,6 +383,44 @@ impl Interpreter {
       Expr::Assign(assign ) => self.interpret_assign(assign),
       Expr::Logical(logical) => self.interpret_logical(logical),
       Expr::Call(call) => self.interpret_call(call),
+      Expr::Get(get) => self.interpret_get(get),
+      Expr::Set(set) => self.interpret_set(set),
+      Expr::This(this) => self.interpret_this(this),
+    }
+  }
+
+  fn interpret_this(&mut self, this: &This) -> ExprResult {
+    self.look_up_variable(&this.keyword)
+  }
+
+  fn interpret_set(&mut self, set: &Set) -> ExprResult {
+    let obj = self.interpret_expr(&set.object)?;
+
+
+    if let Value::Instance(mut instance) = obj {
+      let val = self.interpret_expr(&set.value)?;
+      instance.set(set.name.clone(), val.clone());
+      Ok(val)
+    } else {
+      Err(RunTimeError::SetError {
+        token: set.name.clone(),
+        message: "Can only set properties on instances".to_string(),
+      })
+    }
+  }
+
+  fn interpret_get(&mut self, get: &Get) -> ExprResult {
+    let val = self.interpret_expr(&get.object)?;
+
+    match val {
+      Value::Instance(instance) => {
+        let i = instance.get(&get.name)?;
+        Ok(instance.get(&get.name)?)
+      }
+      _ => Err(RunTimeError::AnalysisError {
+        token: get.name.clone(),
+        message: "Can only access properties on instances".to_string(),
+      }),
     }
   }
 
@@ -250,24 +431,26 @@ impl Interpreter {
       .map(|arg| self.interpret_expr(arg))
       .collect::<Result<Vec<_>, _>>()?;
 
-    let fun = match callee {
-      Value::Fun(fun) => fun,
+    let callable:Box<dyn Callable> = match callee {
+      Value::Fun(fun) => Box::new(fun),
+      Value::Class(class) => Box::new(class),
+
       _ => {
         return Err(RunTimeError::CallError {
           token: call.paren.clone(),
-          message: "Can only call functions".to_string(),
+          message: "Can only call functions or methods".to_string(),
         });
       },
     };
 
-    if fun.arity() != args.len() {
+    if callable.arity() != args.len() {
       return Err(RunTimeError::CallError {
         token: call.paren.clone(),
-        message: format!("Expected {} arguments but got {}", fun.arity(), args.len()),
+        message: format!("Expected {} arguments but got {}", callable.arity(), args.len()),
       });
     }
 
-    fun.call(self, args)
+    callable.call(self, args)
   }
 
   fn interpret_logical(&mut self, logical: &Logical) -> ExprResult {
