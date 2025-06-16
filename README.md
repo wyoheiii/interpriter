@@ -8,5 +8,4 @@ lambda
 repl
 型
 最適化
-静的メソッド
 map,配列,vec
