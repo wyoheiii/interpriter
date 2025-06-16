@@ -1,9 +1,7 @@
 use crate::interpreter::Class;
 use crate::interpreter::Fun;
 use crate::interpreter::Instance;
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {

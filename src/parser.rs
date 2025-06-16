@@ -667,10 +667,6 @@ impl Parser {
     &self.tokens[self.current - 1]
   }
 
-  fn before_previous(&mut self) -> &Token {
-    &self.tokens[self.current - 2]
-  }
-
   fn before_before_previous(&mut self) -> &Token {
     &self.tokens[self.current - 3]
   }

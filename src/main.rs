@@ -6,9 +6,7 @@ mod interpreter;
 mod environment;
 mod value;
 mod resolver;
-use std::{io::{self, Write}};
 
-// todo replを実装する
 fn main() {
 
   let args: Vec<String> = std::env::args().collect();
@@ -25,22 +23,6 @@ fn main() {
 fn run_file(path: &str) {
   let source = std::fs::read_to_string(path).expect("Failed to read file");
   run(&source);
-}
-
-fn run_prompt() {
-  loop {
-    print!("> ");
-    io::stdout().flush().unwrap();
-    let mut line = String::new();
-    let bytes = io::stdin().read_line(&mut line).expect("Failed to read line");
-    if bytes == 0 {
-      println!("exiting...");
-      break;
-    }
-    let line = line.trim();
-    println!("You entered: {}", line);
-    run(line);
-  }
 }
 
 fn run(source: &str) {

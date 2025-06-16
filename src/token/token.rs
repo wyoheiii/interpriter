@@ -5,8 +5,6 @@ use crate::token::token_type::TokenType;
 pub enum Literal {
   String(String),
   Number(f64),
-  Identifier(String),
-  Nil,
 }
 
 impl fmt::Display for Literal {
@@ -14,8 +12,6 @@ impl fmt::Display for Literal {
     match self {
       Literal::String(s) => write!(f, "{}", s),
       Literal::Number(n) => write!(f, "{}", n),
-      Literal::Identifier(id) => write!(f, "{}", id),
-      Literal::Nil => write!(f, "Nil"),
     }
   }
 }
@@ -76,9 +72,5 @@ impl Token {
       column: 0,
       literal: None,
     }
-  }
-
-  pub fn to_string(&self) -> String {
-    format!("{:?} {} {}", self.token_type, self.lexeme, self.literal.as_ref().map_or("None".to_string(), |l| l.to_string()))
   }
 }

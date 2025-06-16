@@ -1,12 +1,12 @@
 use crate::expr::{
-  Assign, Binary, BinaryOperator, Block, Call, Expr, Grouping, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return, ClassDecl, Get,Set, This, Super,
+  Assign, Binary, BinaryOperator, Block, Call, Expr, If, Literal, Logical, LogicalOperator, Stmt, Unary, UnaryOperator, VarDecl, Variable, While, FunDecl, Return, ClassDecl, Get,Set, This, Super,
 };
 use crate::token::Token;
 use crate::value::Value;
 use crate::environment::Environment;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::{env, fmt};
+use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -327,7 +327,7 @@ impl Interpreter {
 
     if super_class.is_some() {
       self.env = Rc::new(RefCell::new(Environment::new(Some(self.env.clone()))));
-      let name = class.name.clone();
+      // let name = class.name.clone();
       self.env.borrow_mut().define(Value::Class(*super_class.clone().unwrap()), Token::super_dummy());
     }
 
@@ -502,7 +502,7 @@ impl Interpreter {
 
     match val {
       Value::Instance(instance) => {
-        let i = instance.get(&get.name)?;
+        // let i = instance.get(&get.name)?;
         Ok(instance.get(&get.name)?)
       }
       _ => Err(RunTimeError::AnalysisError {
